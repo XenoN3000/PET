@@ -16,6 +16,7 @@ public static class ApplyPipelineExtensions
         app.AddUseAuth();
         app.AddUseLoggingMiddleware();
         app.AddUseMapControllers();
+        app.AddUseSpaFallback();
         
         return app;
     }

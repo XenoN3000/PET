@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { QuizDto } from '../../types/quiz';
 import { 
   CheckCircle2, 
@@ -19,6 +20,7 @@ interface QuizRunnerProps {
 }
 
 export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState(false);
@@ -77,10 +79,10 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Assessment Complete!
+            {t('quizRunner.completeTitle')}
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            You have completed the <span className="font-semibold text-slate-800 dark:text-slate-200">{quiz.title}</span> training module.
+            {t('quizRunner.completeDesc', { title: quiz.title })}
           </p>
 
           {/* Score Badge */}
@@ -92,54 +94,54 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
             }`}>
               <div className="text-4xl font-extrabold">{scorePercentage}%</div>
               <div className="text-xs uppercase tracking-wider font-semibold mt-1">
-                {isPassed ? 'Clinical Proficiency Pass' : 'Review Recommended'}
+                {isPassed ? t('quizRunner.proficiencyPass') : t('quizRunner.reviewRecommended')}
               </div>
             </div>
           </div>
 
           {/* Breakdown stats */}
-          <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-left border border-slate-100 dark:border-slate-800">
+          <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-left rtl:text-right border border-slate-100 dark:border-slate-800">
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Total Questions</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('quizRunner.totalQuestions')}</div>
               <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{questions.length}</div>
             </div>
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Correct Answers</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('quizRunner.correctAnswers')}</div>
               <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{correctCount}</div>
             </div>
             <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">Incorrect</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{t('quizRunner.incorrectAnswers')}</div>
               <div className="text-lg font-bold text-rose-600 dark:text-rose-400">{questions.length - correctCount}</div>
             </div>
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {isPassed 
-              ? 'Excellent work! You demonstrated solid mastery of standard PET tolerances and remediation procedures.' 
-              : 'Consider reviewing the protocol specifications and running the interactive simulations in the Labs tab.'}
+              ? t('quizRunner.passMessage') 
+              : t('quizRunner.failMessage')}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               onClick={() => setIsReviewMode(true)}
-              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <BookOpen className="w-4 h-4" />
-              Review Answers & Rationales
+              {t('quizRunner.reviewRationalesBtn')}
             </button>
             <button
               onClick={handleRestart}
-              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
-              Retake Quiz
+              {t('quizRunner.retakeBtn')}
             </button>
             <button
               onClick={onExit}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              All Quizzes
-              <ChevronRight className="w-4 h-4" />
+              {t('quizRunner.allQuizzesBtn')}
+              <ChevronRight className="w-4 h-4 rtl:rotate-180" />
             </button>
           </div>
         </div>
@@ -154,13 +156,13 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => setIsReviewMode(false)}
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Summary
+            <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+            {t('quizRunner.backToSummary')}
           </button>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-            Review Mode ({correctCount}/{questions.length} Correct)
+            {t('quizRunner.reviewModeHeader', { correct: correctCount, total: questions.length })}
           </span>
         </div>
 
@@ -188,11 +190,11 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
                     {isUserCorrect ? (
                       <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="w-4 h-4" /> Correct
+                        <CheckCircle2 className="w-4 h-4" /> {t('quizzes.correct')}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                        <XCircle className="w-4 h-4" /> Incorrect
+                        <XCircle className="w-4 h-4" /> {t('quizzes.incorrect')}
                       </span>
                     )}
                   </div>
@@ -221,13 +223,13 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
                       >
                         <span className="flex-1">{opt.optionText}</span>
                         {isCorrectAnswer && (
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider ml-2 shrink-0">
-                            Correct Answer
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider ml-2 rtl:ml-0 rtl:mr-2 shrink-0">
+                            {t('quizRunner.correctAnswerBadge')}
                           </span>
                         )}
                         {isSelected && !isCorrectAnswer && (
-                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider ml-2 shrink-0">
-                            Your Choice
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider ml-2 rtl:ml-0 rtl:mr-2 shrink-0">
+                            {t('quizRunner.yourChoice')}
                           </span>
                         )}
                       </div>
@@ -239,7 +241,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
                 <div className="p-3.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
                   <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                   <div>
-                    <span className="font-semibold">Clinical Rationale: </span>
+                    <span className="font-semibold">{t('quizzes.clinicalRationale')}: </span>
                     {userChoice ? userChoice.clinicalRationale : correctOpt?.clinicalRationale}
                   </div>
                 </div>
@@ -262,17 +264,17 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
       <div className="flex items-center justify-between">
         <button
           onClick={onExit}
-          className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1.5 transition-colors"
+          className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 flex items-center gap-1.5 transition-colors cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Exit Quiz
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+          {t('quizRunner.exitQuiz')}
         </button>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             {quiz.category}
           </span>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-            Question {currentIndex + 1} / {questions.length}
+            {t('quizRunner.questionProgress', { current: currentIndex + 1, total: questions.length })}
           </span>
         </div>
       </div>
@@ -322,7 +324,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
                 key={opt.id}
                 onClick={() => handleSelectOption(currentQuestion.id, opt.id)}
                 disabled={hasAnsweredCurrent}
-                className={`w-full text-left p-4 rounded-xl border text-sm flex items-start justify-between gap-3 transition-all ${buttonStyle}`}
+                className={`w-full text-left rtl:text-right p-4 rounded-xl border text-sm flex items-start justify-between gap-3 transition-all cursor-pointer ${buttonStyle}`}
               >
                 <span className="flex-1 leading-relaxed">{opt.optionText}</span>
                 {hasAnsweredCurrent && isCorrect && (
@@ -346,7 +348,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
             <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
               <div className="font-bold mb-1">
-                {selectedOptionObj.isCorrect ? 'Correct Diagnosis!' : 'Review Clinical Rationale:'}
+                {selectedOptionObj.isCorrect ? t('quizRunner.correctDiagnosis') : t('quizRunner.reviewRationale')}
               </div>
               <p>{selectedOptionObj.clinicalRationale}</p>
             </div>
@@ -358,19 +360,19 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({ quiz, onExit }) => {
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Previous
+            <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+            {t('quizRunner.previous')}
           </button>
 
           <button
             onClick={handleNext}
             disabled={!hasAnsweredCurrent}
-            className="px-4 py-2 rounded-xl text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 text-white transition-colors flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-2 rounded-xl text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 text-white transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
-            {currentIndex === questions.length - 1 ? 'Finish Assessment' : 'Next Question'}
-            <ArrowRight className="w-3.5 h-3.5" />
+            {currentIndex === questions.length - 1 ? t('quizRunner.finish') : t('quizRunner.next')}
+            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
           </button>
         </div>
       </div>

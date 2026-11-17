@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   generateUniformCylinderGrid, 
   calculateUniformity, 
@@ -9,6 +10,7 @@ import { AcceptanceBadge } from './AcceptanceBadge';
 import { Sliders, Info, AlertTriangle, Percent } from 'lucide-react';
 
 export const DailyUniformityLab: React.FC = () => {
+  const { t } = useTranslation();
   const baseCounts = 3200;
   const [noiseLevel, setNoiseLevel] = useState<number>(0.12);
   const [hasDefect, setHasDefect] = useState<boolean>(false);
@@ -61,10 +63,10 @@ export const DailyUniformityLab: React.FC = () => {
         <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-bold text-slate-900 dark:text-white">
-            Daily Uniformity & Crystal Response Workbench (IAEA / AAPM TG-108)
+            {t('uniformityLab.title')}
           </p>
           <p className="leading-relaxed">
-            Evaluates detector response homogeneity across the transverse FOV using a uniform Ge-68 cylinder. Move the green circular ROI or toggle the defect simulation to see how dead detector blocks impact Integral Uniformity (IU) and Differential Uniformity (DU).
+            {t('uniformityLab.desc')}
           </p>
         </div>
       </div>
@@ -73,7 +75,7 @@ export const DailyUniformityLab: React.FC = () => {
         {/* Left Column: Canvas Viewer & ROI controls (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           <PhantomCanvasViewer
-            title="Uniform Cylinder Slice (Central 50% Slices)"
+            title={t('uniformityLab.sliceTitle')}
             grid={grid}
             colormap={colormap}
             onColormapChange={setColormap}
@@ -85,13 +87,13 @@ export const DailyUniformityLab: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs">
             <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-blue-500" />
-              <span>Phantom & Acquisition Controls</span>
+              <span>{t('uniformityLab.controlsTitle')}</span>
             </span>
 
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">ROI Sampling Radius</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('uniformityLab.roiRadius')}</span>
                   <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{roiCircle.radius} px ({((roiCircle.radius / cylinderRadius) * 100).toFixed(0)}% dia)</span>
                 </div>
                 <input
@@ -106,7 +108,7 @@ export const DailyUniformityLab: React.FC = () => {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">Statistical Noise / Emission Counts</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('uniformityLab.noiseCounts')}</span>
                   <span className="font-mono">{(noiseLevel * 100).toFixed(0)}%</span>
                 </div>
                 <input
@@ -133,12 +135,12 @@ export const DailyUniformityLab: React.FC = () => {
                     />
                     <label htmlFor="defectToggle" className="font-bold text-slate-800 dark:text-slate-200 cursor-pointer flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Simulate Hardware Defect</span>
+                      <span>{t('uniformityLab.simulateDefect')}</span>
                     </label>
                   </div>
                   {hasDefect && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 uppercase">
-                      Active
+                      {t('uniformityLab.defectActive')}
                     </span>
                   )}
                 </div>
@@ -146,7 +148,7 @@ export const DailyUniformityLab: React.FC = () => {
                 {hasDefect && (
                   <div className="pt-1 pl-6">
                     <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-                      <span>Defect Severity (Signal Loss)</span>
+                      <span>{t('uniformityLab.defectSeverity')}</span>
                       <span className="font-mono text-red-600">-{defectDrop}%</span>
                     </div>
                     <input
@@ -159,7 +161,7 @@ export const DailyUniformityLab: React.FC = () => {
                       className="w-full h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-red-600"
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Simulates a failed photomultiplier tube (PMT) or detached light guide.
+                      {t('uniformityLab.defectHint')}
                     </p>
                   </div>
                 )}
@@ -174,24 +176,24 @@ export const DailyUniformityLab: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               <Percent className="w-4 h-4 text-emerald-500" />
-              <span>Standard Uniformity Formulations</span>
+              <span>{t('uniformityLab.formulaTitle')}</span>
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 font-mono text-[11px] space-y-1">
-                <span className="text-slate-400 block font-sans text-[10px] uppercase font-bold">Integral Uniformity (IU)</span>
+                <span className="text-slate-400 block font-sans text-[10px] uppercase font-bold">{t('labs.iu')}</span>
                 <p className="text-blue-600 dark:text-blue-400 font-bold">
                   IU = 100 × (Max - Min) / (Max + Min)
                 </p>
-                <p className="text-slate-500 font-sans text-[10px]">Overall variation across entire sampled ROI</p>
+                <p className="text-slate-500 font-sans text-[10px]">{t('uniformityLab.iuFormulaDesc')}</p>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 font-mono text-[11px] space-y-1">
-                <span className="text-slate-400 block font-sans text-[10px] uppercase font-bold">Differential Uniformity (DU)</span>
+                <span className="text-slate-400 block font-sans text-[10px] uppercase font-bold">{t('labs.du')}</span>
                 <p className="text-emerald-600 dark:text-emerald-400 font-bold">
                   DU = Max Local Change (5-pixel blocks)
                 </p>
-                <p className="text-slate-500 font-sans text-[10px]">Short-range rate of change between adjacent crystals</p>
+                <p className="text-slate-500 font-sans text-[10px]">{t('uniformityLab.duFormulaDesc')}</p>
               </div>
             </div>
           </div>
@@ -199,27 +201,27 @@ export const DailyUniformityLab: React.FC = () => {
           {/* Statistical Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Integral (IU)</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('labs.iu')}</p>
               <p className={`text-2xl font-bold font-mono mt-1 ${
                 isPassIu ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
               }`}>
                 {uniformity.integralUniformityPercent}%
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Limit: ≤ 5.0%</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t('uniformityLab.limitIu')}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Differential (DU)</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('labs.du')}</p>
               <p className={`text-2xl font-bold font-mono mt-1 ${
                 isPassDu ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
               }`}>
                 {uniformity.differentialUniformityPercent}%
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Limit: ≤ 3.5%</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t('uniformityLab.limitDu')}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Mean Counts</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('uniformityLab.meanCounts')}</p>
               <p className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-200 mt-1">
                 {uniformity.mean}
               </p>
@@ -227,11 +229,11 @@ export const DailyUniformityLab: React.FC = () => {
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Max / Min Counts</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('uniformityLab.maxMinCounts')}</p>
               <p className="text-sm font-bold font-mono text-slate-800 dark:text-slate-200 mt-2">
                 {uniformity.max} / {uniformity.min}
               </p>
-              <p className="text-[10px] text-slate-400 mt-1">Pixels: {uniformity.totalPixels}</p>
+              <p className="text-[10px] text-slate-400 mt-1">{t('uniformityLab.pixels', { count: uniformity.totalPixels })}</p>
             </div>
           </div>
 
@@ -239,24 +241,24 @@ export const DailyUniformityLab: React.FC = () => {
           <div className="space-y-3">
             <AcceptanceBadge
               isPass={isPassIu}
-              parameterName="Daily Integral Uniformity (IU)"
+              parameterName={t('uniformityLab.dailyIuParam')}
               currentValue={uniformity.integralUniformityPercent}
               targetValue={targetIu}
               unit="%"
               comparisonOperator="<="
-              toleranceDescription="IU must be <= 5.0% across all evaluated slices."
-              remedialAction="Perform full detector normalization calibration scan. If failing persistently, check crystal gain maps and PMT voltages."
+              toleranceDescription={t('uniformityLab.dailyIuTolerance')}
+              remedialAction={t('uniformityLab.dailyIuRemedy')}
             />
 
             <AcceptanceBadge
               isPass={isPassDu}
-              parameterName="Differential Uniformity (DU)"
+              parameterName={t('uniformityLab.dailyDuParam')}
               currentValue={uniformity.differentialUniformityPercent}
               targetValue={targetDu}
               unit="%"
               comparisonOperator="<="
-              toleranceDescription="DU must be <= 3.5% across adjacent detector crystals."
-              remedialAction="Inspect sinogram for isolated crystal streak artifacts or loose electronic cabling."
+              toleranceDescription={t('uniformityLab.dailyDuTolerance')}
+              remedialAction={t('uniformityLab.dailyDuRemedy')}
             />
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, TrendingUp } from 'lucide-react';
 
 interface AiMetricsCardProps {
@@ -18,6 +19,7 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
   lowDoseDice,
   aiDice
 }) => {
+  const { t } = useTranslation();
   const psnrGain = Number((aiPsnr - lowDosePsnr).toFixed(1));
   const ssimGain = Number(((aiSsim - lowDoseSsim) * 100).toFixed(1));
   const diceGain = Number(((aiDice - lowDoseDice) * 100).toFixed(1));
@@ -29,7 +31,7 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
         {/* PSNR */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Peak SNR (PSNR)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('aiMetrics.psnr')}</span>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-0.5">
               <TrendingUp className="w-3 h-3" /> +{psnrGain} dB
             </span>
@@ -39,14 +41,14 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
             <span className="text-xs text-slate-400 line-through">{lowDosePsnr} dB</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Standard: &gt; 30 dB indicates high fidelity noise suppression without artifact creation.
+            {t('aiMetrics.psnrStandard')}
           </p>
         </div>
 
         {/* SSIM */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Structural Similarity (SSIM)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('aiMetrics.ssim')}</span>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-0.5">
               <TrendingUp className="w-3 h-3" /> +{ssimGain}%
             </span>
@@ -56,14 +58,14 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
             <span className="text-xs text-slate-400 line-through">{lowDoseSsim}</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Measures preservation of anatomical boundaries, organ shapes, and lesion borders.
+            {t('aiMetrics.ssimDesc')}
           </p>
         </div>
 
         {/* Dice Score */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Dice Similarity (DSC)</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('aiMetrics.dice')}</span>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-0.5">
               <TrendingUp className="w-3 h-3" /> +{diceGain}%
             </span>
@@ -73,7 +75,7 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
             <span className="text-xs text-slate-400 line-through">{lowDoseDice}</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Overlap coefficient of metabolic tumor volume (&gt;0.85 indicates excellent lesion detectability).
+            {t('aiMetrics.diceDesc')}
           </p>
         </div>
       </div>
@@ -83,10 +85,10 @@ export const AiMetricsCard: React.FC<AiMetricsCardProps> = ({
         <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <span className="font-bold text-slate-900 dark:text-white block">
-            Clinical Quantitative Validation (Abdelrahman et al. / IAEA)
+            {t('aiMetrics.clinicalGuidanceTitle')}
           </span>
           <p className="leading-relaxed">
-            In low-dose oncology imaging, simple Gaussian post-smoothing improves SNR but suppresses critical small metastatic foci. The deep learning U-Net architecture trained with perceptual loss preserves fine structural edges while reducing radiation dose by up to 75%.
+            {t('aiMetrics.clinicalGuidanceDesc')}
           </p>
         </div>
       </div>

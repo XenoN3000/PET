@@ -9,4 +9,5 @@ public class QuizQuestion
     public string? ReferenceProtocol { get; set; }
 
     public ICollection<QuizOption> Options { get; set; } = new List<QuizOption>();
+    public ICollection<QuizQuestionTranslation> Translations { get; set; } = new List<QuizQuestionTranslation>();
 }

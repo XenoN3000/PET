@@ -12,6 +12,7 @@ public static class GetQuizById
     public class Query : IRequest<Result<QuizDto>>
     {
         public Guid Id { get; set; }
+        public string? Lang { get; set; }
     }
 
     public class Handler : IRequestHandler<Query, Result<QuizDto>>
@@ -28,8 +29,12 @@ public static class GetQuizById
         public async Task<Result<QuizDto>> Handle(Query request, CancellationToken cancellationToken)
         {
             var quiz = await _context.Quizzes
+                .Include(q => q.Translations)
                 .Include(q => q.Questions.OrderBy(x => x.Order))
+                    .ThenInclude(qu => qu.Translations)
+                .Include(q => q.Questions)
                     .ThenInclude(qu => qu.Options)
+                        .ThenInclude(o => o.Translations)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(q => q.Id == request.Id, cancellationToken);
 
@@ -39,6 +44,9 @@ public static class GetQuizById
             }
 
             var dto = _mapper.Map<QuizDto>(quiz);
+            var lang = string.IsNullOrWhiteSpace(request.Lang) ? "en" : request.Lang;
+            dto.Localize(quiz, lang);
+
             return Result<QuizDto>.Success(dto);
         }
     }

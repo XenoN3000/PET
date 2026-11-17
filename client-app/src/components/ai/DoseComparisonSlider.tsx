@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type AiDoseImages } from '../../utils/aiSim';
 import { getColormapRgb, type ColormapType } from '../../utils/phantomSim';
 import { Columns, SplitSquareVertical } from 'lucide-react';
@@ -14,6 +15,7 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
   colormap,
   onColormapChange
 }) => {
+  const { t } = useTranslation();
   const [splitPos, setSplitPos] = useState<number>(50); // 0 to 100%
   const [viewMode, setViewMode] = useState<'split' | 'side-by-side'>('split');
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -75,16 +77,25 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
     setSplitPos(Math.round(pos));
   };
 
+  const getColormapLabel = (cm: ColormapType) => {
+    switch (cm) {
+      case 'grayscale': return t('canvasViewer.grayscale');
+      case 'hot-metal': return t('canvasViewer.hotMetal');
+      case 'rainbow': return t('canvasViewer.rainbow');
+      default: return cm;
+    }
+  };
+
   return (
     <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
       {/* Header controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Clinical Dose & AI Enhancement Comparison</span>
+            <span>{t('ai.doseAiTitle')}</span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Compare 25% dose scan vs. deep learning restored reconstruction
+            {t('ai.doseAiDesc')}
           </p>
         </div>
 
@@ -101,7 +112,7 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
               }`}
             >
               <SplitSquareVertical className="w-3.5 h-3.5" />
-              <span>Split Slider</span>
+              <span>{t('ai.splitSlider')}</span>
             </button>
             <button
               type="button"
@@ -113,7 +124,7 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
               }`}
             >
               <Columns className="w-3.5 h-3.5" />
-              <span>Side-by-Side</span>
+              <span>{t('ai.sideBySide')}</span>
             </button>
           </div>
 
@@ -130,7 +141,7 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                {cm === 'hot-metal' ? 'Hot' : cm}
+                {getColormapLabel(cm)}
               </button>
             ))}
           </div>
@@ -159,10 +170,10 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
 
             {/* Left & Right Labels */}
             <div className="absolute top-4 left-4 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-md px-2 py-1 rounded text-amber-400 border border-amber-500/30 pointer-events-none">
-              Low Dose (25%)
+              {t('ai.lowDose')}
             </div>
             <div className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur-md px-2 py-1 rounded text-cyan-400 border border-cyan-500/30 pointer-events-none">
-              U-Net Restored
+              {t('ai.unetRestored')}
             </div>
 
             {/* Draggable Divider Handle */}
@@ -177,7 +188,7 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
           </div>
 
           <div className="max-w-[360px] mx-auto flex items-center gap-3 text-xs text-slate-500">
-            <span>Low Dose</span>
+            <span>{t('ai.lowDose')}</span>
             <input
               type="range"
               min="5"
@@ -186,32 +197,35 @@ export const DoseComparisonSlider: React.FC<DoseComparisonSliderProps> = ({
               onChange={(e) => setSplitPos(Number(e.target.value))}
               className="w-full h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
-            <span>AI Restored</span>
+            <span>{t('ai.aiRestored')}</span>
           </div>
         </div>
       ) : (
         /* Side by Side Mode */
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SingleSliceCard
-            title="1. Standard Dose (100%)"
-            subtitle="Full Diagnostic Reference"
+            title={t('ai.standardDoseCardTitle')}
+            subtitle={t('ai.standardDoseCardSub')}
             grid={slices.standardDose}
             colormap={colormap}
             badgeColor="bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
+            activeLabel={t('ai.active')}
           />
           <SingleSliceCard
-            title="2. Low Dose (25%)"
-            subtitle="High Poisson Noise"
+            title={t('ai.lowDoseCardTitle')}
+            subtitle={t('ai.lowDoseCardSub')}
             grid={slices.lowDose}
             colormap={colormap}
             badgeColor="bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300"
+            activeLabel={t('ai.active')}
           />
           <SingleSliceCard
-            title="3. Deep Learning U-Net"
-            subtitle="Noise Suppressed & Sharp Edges"
+            title={t('ai.aiRestoredCardTitle')}
+            subtitle={t('ai.aiRestoredCardSub')}
             grid={slices.aiRestored}
             colormap={colormap}
             badgeColor="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300"
+            activeLabel={t('ai.active')}
           />
         </div>
       )}
@@ -225,7 +239,8 @@ const SingleSliceCard: React.FC<{
   grid: number[][];
   colormap: ColormapType;
   badgeColor: string;
-}> = ({ title, subtitle, grid, colormap, badgeColor }) => {
+  activeLabel: string;
+}> = ({ title, subtitle, grid, colormap, badgeColor, activeLabel }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const size = grid.length || 128;
 
@@ -260,7 +275,7 @@ const SingleSliceCard: React.FC<{
     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
       <div className="flex items-center justify-between">
         <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{title}</span>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>Active</span>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>{activeLabel}</span>
       </div>
       <div className="bg-black rounded-xl p-1.5 aspect-square border border-slate-800 flex items-center justify-center">
         <canvas ref={canvasRef} width={size} height={size} className="w-full h-full object-contain image-rendering-pixelated rounded" />

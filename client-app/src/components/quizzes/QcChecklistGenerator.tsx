@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Printer, 
   CheckCircle, 
@@ -106,10 +107,12 @@ const DEFAULT_ITEMS: ChecklistItem[] = [
 ];
 
 export const QcChecklistGenerator: React.FC = () => {
-  const [hospitalName, setHospitalName] = useState('University Medical Center - Nuclear Medicine');
+  const { t, i18n } = useTranslation();
+  const isFa = i18n.language === 'fa';
+  const [hospitalName, setHospitalName] = useState(isFa ? 'مرکز پزشکی هسته‌ای و تصویربرداری مولکولی بیمارستان دانشگاهی' : 'University Medical Center - Nuclear Medicine');
   const [scannerModel, setScannerModel] = useState('Biograph Vision 600 / Discovery MI');
-  const [technologistName, setTechnologistName] = useState('N. Nahari, M.Sc.');
-  const [supervisingPhysicist, setSupervisingPhysicist] = useState('Dr. A. Karimian');
+  const [technologistName, setTechnologistName] = useState(isFa ? 'ن. نهاری (کارشناس ارشد)' : 'N. Nahari, M.Sc.');
+  const [supervisingPhysicist, setSupervisingPhysicist] = useState(isFa ? 'دکتر ع. کریمیان' : 'Dr. A. Karimian');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [frequencyFilter, setFrequencyFilter] = useState<'All' | 'Daily Routine' | 'Environmental & Hardware' | 'Weekly / Periodic'>('All');
   const [items, setItems] = useState<ChecklistItem[]>(DEFAULT_ITEMS);
@@ -149,27 +152,27 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Clinical PET Quality Control Routine Checklist
+              {t('checklist.title')}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Configure parameters, record daily inspection values, and export an official hospital compliance log sheet.
+              {t('checklist.desc')}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleReset}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Reset Values
+              {t('checklist.reset')}
             </button>
             <button
               onClick={handlePrint}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm shadow-blue-500/20 transition-colors"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center gap-1.5 shadow-sm shadow-blue-500/20 transition-colors cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              Print / Save PDF
+              {t('checklist.printPdf')}
             </button>
           </div>
         </div>
@@ -179,7 +182,7 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5" />
-              Department / Hospital
+              {t('checklist.hospital')}
             </label>
             <input
               type="text"
@@ -192,7 +195,7 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5" />
-              PET/CT Scanner Unit
+              {t('checklist.scannerUnit')}
             </label>
             <input
               type="text"
@@ -205,7 +208,7 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
-              Performing Technologist
+              {t('checklist.technologist')}
             </label>
             <input
               type="text"
@@ -218,7 +221,7 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5" />
-              Supervising Physicist
+              {t('checklist.physicist')}
             </label>
             <input
               type="text"
@@ -231,7 +234,7 @@ export const QcChecklistGenerator: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
-              Inspection Date
+              {t('checklist.date')}
             </label>
             <input
               type="date"
@@ -293,15 +296,15 @@ export const QcChecklistGenerator: React.FC = () => {
 
         {/* Table of Tests */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left rtl:text-right border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
                 <th className="py-2.5 px-3 font-semibold w-12 text-center">#</th>
-                <th className="py-2.5 px-3 font-semibold">Test Parameter & Protocol</th>
-                <th className="py-2.5 px-3 font-semibold">Standard Tolerance</th>
-                <th className="py-2.5 px-3 font-semibold w-28">Measured</th>
-                <th className="py-2.5 px-3 font-semibold w-24 text-center">Status</th>
-                <th className="py-2.5 px-3 font-semibold">Remarks & Actions</th>
+                <th className="py-2.5 px-3 font-semibold">{t('checklist.testName')}</th>
+                <th className="py-2.5 px-3 font-semibold">{t('checklist.clinicalTolerance')}</th>
+                <th className="py-2.5 px-3 font-semibold w-28">{t('checklist.measuredValue')}</th>
+                <th className="py-2.5 px-3 font-semibold w-24 text-center">{t('checklist.status')}</th>
+                <th className="py-2.5 px-3 font-semibold">{t('checklist.notes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -372,22 +375,22 @@ export const QcChecklistGenerator: React.FC = () => {
         <div className="mt-10 pt-6 border-t-2 border-slate-300 dark:border-slate-700 grid grid-cols-2 gap-8 text-xs">
           <div>
             <p className="font-semibold text-slate-800 dark:text-slate-200">
-              Performing Nuclear Medicine Technologist:
+              {t('checklist.techSign')}:
             </p>
             <div className="mt-8 border-b border-slate-400 dark:border-slate-600 pb-1">
               <span className="font-medium">{technologistName}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Signature / Date</p>
+            <p className="text-[10px] text-slate-400 mt-1">{isFa ? 'امضا / تاریخ' : 'Signature / Date'}</p>
           </div>
 
           <div>
             <p className="font-semibold text-slate-800 dark:text-slate-200">
-              Supervising Lead Medical Physicist:
+              {t('checklist.physicistSign')}:
             </p>
             <div className="mt-8 border-b border-slate-400 dark:border-slate-600 pb-1">
               <span className="font-medium">{supervisingPhysicist}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Verification & Approval Signature / Date</p>
+            <p className="text-[10px] text-slate-400 mt-1">{isFa ? 'امضای تأییدیه نهایی / تاریخ' : 'Verification & Approval Signature / Date'}</p>
           </div>
         </div>
       </div>

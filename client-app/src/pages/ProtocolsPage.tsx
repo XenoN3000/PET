@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import type { QcProtocolDto, QcFrequency } from '../types/protocol';
 import { Search, Filter, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export const ProtocolsPage = () => {
+  const { t, i18n } = useTranslation();
   const [protocols, setProtocols] = useState<QcProtocolDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +16,8 @@ export const ProtocolsPage = () => {
   const activeFrequency = searchParams.get('frequency') || 'All';
 
   useEffect(() => {
-    apiService.getProtocols()
+    setLoading(true);
+    apiService.getProtocols(undefined, i18n.language)
       .then(data => {
         setProtocols(data);
         setLoading(false);
@@ -23,7 +26,7 @@ export const ProtocolsPage = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [i18n.language]);
 
   const frequencies: ('All' | QcFrequency)[] = ['All', 'Daily', 'Periodic', 'Annual'];
 
@@ -41,26 +44,26 @@ export const ProtocolsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Quality Control Protocols Catalog</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Complete clinical specifications, procedures, and tolerance criteria</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('protocols.title')}</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t('protocols.subtitle')}</p>
         </div>
 
         {/* Search input */}
         <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search code, title, standard..."
+            placeholder={i18n.language === 'fa' ? 'جستجوی کد، عنوان، استاندارد...' : 'Search code, title, standard...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+            className="w-full pl-9 rtl:pl-4 rtl:pr-9 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
           />
         </div>
       </div>
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <Filter className="w-3.5 h-3.5 text-slate-400 mr-1" />
+        <Filter className="w-3.5 h-3.5 text-slate-400 mr-1 rtl:mr-0 rtl:ml-1" />
         {frequencies.map((freq) => (
           <button
             key={freq}
@@ -72,20 +75,20 @@ export const ProtocolsPage = () => {
               }
               setSearchParams(searchParams);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeFrequency.toLowerCase() === freq.toLowerCase()
                 ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            {freq}
+            {freq === 'All' ? t('protocols.all') : t(`protocols.${freq.toLowerCase()}`, freq)}
           </button>
         ))}
       </div>
 
       {/* Protocols List */}
       {loading ? (
-        <div className="p-16 text-center text-sm text-slate-400">Loading QC protocols catalog...</div>
+        <div className="p-16 text-center text-sm text-slate-400">{t('dashboard.loading')}</div>
       ) : error ? (
         <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
@@ -93,7 +96,7 @@ export const ProtocolsPage = () => {
         </div>
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 text-sm">
-          No QC protocols found matching your criteria.
+          {i18n.language === 'fa' ? 'هیچ پروتکلی مطابق با جستجوی شما یافت نشد.' : 'No QC protocols found matching your criteria.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -101,7 +104,7 @@ export const ProtocolsPage = () => {
             <Link
               key={protocol.id}
               to={`/protocols/${protocol.id}`}
-              className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all hover:shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6"
+              className="group p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all hover:shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer"
             >
               <div className="space-y-2 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -115,7 +118,7 @@ export const ProtocolsPage = () => {
                       ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
                       : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400'
                   }`}>
-                    {protocol.frequency}
+                    {t(`protocols.${protocol.frequency.toLowerCase()}`, protocol.frequency)}
                   </span>
                   <span className="text-xs text-slate-400 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5" />
@@ -133,16 +136,16 @@ export const ProtocolsPage = () => {
 
                 <div className="flex flex-wrap gap-4 pt-2 text-[11px] text-slate-500 dark:text-slate-400">
                   {protocol.phantom && (
-                    <span><strong>Phantom:</strong> {protocol.phantom.name} ({protocol.phantom.recommendedIsotope})</span>
+                    <span><strong>{t('protocols.phantom')}:</strong> {protocol.phantom.name} ({protocol.phantom.recommendedIsotope})</span>
                   )}
-                  <span><strong>Steps:</strong> {protocol.steps?.length || 0} stages</span>
-                  <span><strong>Acceptance Criteria:</strong> {protocol.acceptanceCriteria?.length || 0} thresholds</span>
+                  <span><strong>{t('protocolDetail.procedure')}:</strong> {t('protocols.stepsCount', { count: protocol.steps?.length || 0 })}</span>
+                  <span><strong>{t('protocolDetail.acceptance')}:</strong> {t('protocols.criteriaCount', { count: protocol.acceptanceCriteria?.length || 0 })}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 shrink-0 group-hover:translate-x-1 transition-transform">
-                <span>View Protocol</span>
-                <ArrowRight className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400 shrink-0 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform">
+                <span>{t('protocols.viewDetails')}</span>
+                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
               </div>
             </Link>
           ))}

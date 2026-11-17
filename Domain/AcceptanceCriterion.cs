@@ -10,4 +10,6 @@ public class AcceptanceCriterion
     public string Unit { get; set; } = string.Empty;
     public string ToleranceDescription { get; set; } = string.Empty;
     public string RemedialAction { get; set; } = string.Empty;
+
+    public ICollection<AcceptanceCriterionTranslation> Translations { get; set; } = new List<AcceptanceCriterionTranslation>();
 }

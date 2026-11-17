@@ -14,4 +14,5 @@ public class QcProtocol
     public PhantomSpec? Phantom { get; set; }
     public ICollection<TestStep> Steps { get; set; } = new List<TestStep>();
     public ICollection<AcceptanceCriterion> AcceptanceCriteria { get; set; } = new List<AcceptanceCriterion>();
+    public ICollection<QcProtocolTranslation> Translations { get; set; } = new List<QcProtocolTranslation>();
 }

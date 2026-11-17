@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { QuizDto } from '../types/quiz';
 import { apiService } from '../services/api';
 import { QuizRunner } from '../components/quizzes/QuizRunner';
@@ -385,6 +386,7 @@ const FALLBACK_QUIZZES: QuizDto[] = [
 ];
 
 export const QuizzesPage: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<'assessments' | 'checklist'>('assessments');
   const [quizzes, setQuizzes] = useState<QuizDto[]>(FALLBACK_QUIZZES);
   const [activeQuiz, setActiveQuiz] = useState<QuizDto | null>(null);
@@ -396,26 +398,20 @@ export const QuizzesPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await apiService.getQuizzes();
+        const data = await apiService.getQuizzes(undefined, i18n.language);
         if (data && data.length > 0) {
-          // If questions are present in list
-          if (data[0].questions && data[0].questions.length > 0) {
-            setQuizzes(data);
-          } else {
-            // Fetch detailed first quiz or preserve fallback
-            setQuizzes(data);
-          }
+          setQuizzes(data);
         }
       } catch (err) {
         console.warn('Backend API quiz fetch fallback to preloaded clinical modules:', err);
-        setError('Operating in offline mode with preloaded clinical assessment bank.');
+        setError(i18n.language === 'fa' ? 'در حال کار در حالت آفلاین' : 'Operating in offline mode with preloaded clinical assessment bank.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchQuizzes();
-  }, []);
+  }, [i18n.language]);
 
   const handleStartQuiz = async (quiz: QuizDto) => {
     // If questions already populated, launch runner directly
@@ -428,7 +424,7 @@ export const QuizzesPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const detailed = await apiService.getQuizById(quiz.id);
+      const detailed = await apiService.getQuizById(quiz.id, i18n.language);
       setActiveQuiz(detailed);
     } catch {
       // Find matching in fallback
@@ -447,13 +443,13 @@ export const QuizzesPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
             <GraduationCap className="w-4 h-4" />
-            Clinical Training & Assessment Platform
+            {t('quizzes.badge')}
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Quizzes & Clinical QC Routine
+            {t('quizzes.title')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Reinforce clinical decision-making, international protocol tolerances (IAEA, NEMA, AAPM), and generate standardized daily QC checklists for hospital audit.
+            {t('quizzes.subtitle')}
           </p>
         </div>
 
@@ -461,25 +457,25 @@ export const QuizzesPage: React.FC = () => {
         <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200 dark:border-slate-700/60 shrink-0 self-start sm:self-center">
           <button
             onClick={() => { setActiveTab('assessments'); setActiveQuiz(null); }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
               activeTab === 'assessments'
                 ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            Test Bank ({quizzes.length})
+            {t('quizzes.testBankTab', { count: quizzes.length })}
           </button>
           <button
             onClick={() => { setActiveTab('checklist'); setActiveQuiz(null); }}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
               activeTab === 'checklist'
                 ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <FileCheck2 className="w-3.5 h-3.5" />
-            Hospital QC Checklist
+            {t('quizzes.checklistTab')}
           </button>
         </div>
       </div>
@@ -496,7 +492,7 @@ export const QuizzesPage: React.FC = () => {
             {loading && (
               <div className="flex items-center justify-center p-8 text-slate-500 text-sm gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                Loading quiz modules...
+                {t('quizzes.loading')}
               </div>
             )}
 
@@ -542,21 +538,21 @@ export const QuizzesPage: React.FC = () => {
                     <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
-                        <span>{quiz.questionCount || quiz.questions?.length || 3} Questions</span>
+                        <span>{t('quizzes.questionsCount', { count: quiz.questionCount || quiz.questions?.length || 3 })}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>~{quiz.estimatedMinutes} min</span>
+                        <span>{t('quizzes.estimatedMin', { min: quiz.estimatedMinutes })}</span>
                       </div>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleStartQuiz(quiz)}
-                    className="mt-6 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-2 shadow-sm shadow-blue-500/10 transition-colors"
+                    className="mt-6 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-2 shadow-sm shadow-blue-500/10 transition-colors cursor-pointer"
                   >
-                    Start Assessment
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>{t('quizzes.startQuiz')}</span>
+                    <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
                   </button>
                 </div>
               ))}

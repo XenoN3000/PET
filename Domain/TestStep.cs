@@ -9,4 +9,6 @@ public class TestStep
     public string Instruction { get; set; } = string.Empty;
     public bool IsCritical { get; set; }
     public string? CautionNote { get; set; }
+
+    public ICollection<TestStepTranslation> Translations { get; set; } = new List<TestStepTranslation>();
 }

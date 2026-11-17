@@ -17,6 +17,20 @@ namespace API.Controllers;
         protected IMediator Mediator => _mediator ??= HttpContext.RequestServices.GetService<IMediator>();
         
 
+        protected string GetCurrentLanguage(string? queryLang = null)
+        {
+            if (!string.IsNullOrWhiteSpace(queryLang))
+                return queryLang.Trim().ToLowerInvariant();
+
+            var acceptLang = Request.Headers.AcceptLanguage.ToString();
+            if (!string.IsNullOrWhiteSpace(acceptLang) && acceptLang.Contains("fa", StringComparison.OrdinalIgnoreCase))
+            {
+                return "fa";
+            }
+
+            return "en";
+        }
+
         protected ActionResult HandleResult<T>(Result<T> result)
         {
             return result switch

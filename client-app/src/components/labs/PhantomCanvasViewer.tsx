@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getColormapRgb, type ColormapType } from '../../utils/phantomSim';
 import { Eye, Palette } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
   onRoiChange,
   title
 }) => {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [windowLevel, setWindowLevel] = useState<number>(50); // 0-100%
   const [windowWidth, setWindowWidth] = useState<number>(100); // 10-200%
@@ -140,12 +142,21 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
     }
   };
 
+  const getColormapLabel = (cm: ColormapType) => {
+    switch (cm) {
+      case 'grayscale': return t('canvasViewer.grayscale');
+      case 'hot-metal': return t('canvasViewer.hotMetal');
+      case 'rainbow': return t('canvasViewer.rainbow');
+      default: return cm;
+    }
+  };
+
   return (
     <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
           <Eye className="w-3.5 h-3.5 text-blue-500" />
-          <span>{title || '2D Axial Slice Viewer'}</span>
+          <span>{title || t('canvasViewer.defaultTitle')}</span>
         </span>
         <span className="text-[11px] font-mono text-slate-400">{size} × {size} px</span>
       </div>
@@ -177,7 +188,7 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
         {/* Colormaps */}
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1 text-[11px]">
-            <Palette className="w-3 h-3" /> Colormap:
+            <Palette className="w-3 h-3" /> {t('canvasViewer.colormap')}
           </span>
           <div className="flex items-center gap-1">
             {(['grayscale', 'hot-metal', 'rainbow'] as ColormapType[]).map((cm) => (
@@ -191,7 +202,7 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                {cm === 'hot-metal' ? 'Hot' : cm}
+                {getColormapLabel(cm)}
               </button>
             ))}
           </div>
@@ -201,7 +212,7 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
             <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-              <span>Level</span>
+              <span>{t('canvasViewer.level')}</span>
               <span className="font-mono">{windowLevel}%</span>
             </div>
             <input
@@ -216,7 +227,7 @@ export const PhantomCanvasViewer: React.FC<PhantomCanvasViewerProps> = ({
 
           <div>
             <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
-              <span>Window</span>
+              <span>{t('canvasViewer.window')}</span>
               <span className="font-mono">{windowWidth}%</span>
             </div>
             <input

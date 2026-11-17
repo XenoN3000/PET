@@ -8,14 +8,24 @@ namespace API.Controllers;
 public class QcProtocolsController : BaseApiController
 {
     [HttpGet]
-    public async Task<ActionResult<List<QcProtocolDto>>> GetProtocols([FromQuery] QcFrequency? frequency)
+    public async Task<ActionResult<List<QcProtocolDto>>> GetProtocols([FromQuery] QcFrequency? frequency, [FromQuery] string? lang)
     {
-        return HandleResult(await Mediator.Send(new GetQcProtocols.Query { Frequency = frequency }));
+        var resolvedLang = GetCurrentLanguage(lang);
+        return HandleResult(await Mediator.Send(new GetQcProtocols.Query 
+        { 
+            Frequency = frequency, 
+            Lang = resolvedLang 
+        }));
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<QcProtocolDto>> GetProtocol(Guid id)
+    public async Task<ActionResult<QcProtocolDto>> GetProtocol(Guid id, [FromQuery] string? lang)
     {
-        return HandleResult(await Mediator.Send(new GetQcProtocolById.Query { Id = id }));
+        var resolvedLang = GetCurrentLanguage(lang);
+        return HandleResult(await Mediator.Send(new GetQcProtocolById.Query 
+        { 
+            Id = id, 
+            Lang = resolvedLang 
+        }));
     }
 }

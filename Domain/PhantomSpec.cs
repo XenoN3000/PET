@@ -10,4 +10,6 @@ public class PhantomSpec
     public string ActivityLevel { get; set; } = string.Empty;
     public string PreparationInstructions { get; set; } = string.Empty;
     public string Dimensions { get; set; } = string.Empty;
+
+    public ICollection<PhantomSpecTranslation> Translations { get; set; } = new List<PhantomSpecTranslation>();
 }

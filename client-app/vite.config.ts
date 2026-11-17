@@ -10,10 +10,14 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    outDir: '../API/wwwroot',
+    emptyOutDir: true
+  },
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5249',
+        target: 'http://localhost:5000',
         changeOrigin: true
       }
     }

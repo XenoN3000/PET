@@ -7,14 +7,24 @@ namespace API.Controllers;
 public class QuizzesController : BaseApiController
 {
     [HttpGet]
-    public async Task<ActionResult<List<QuizDto>>> GetQuizzes([FromQuery] string? category)
+    public async Task<ActionResult<List<QuizDto>>> GetQuizzes([FromQuery] string? category, [FromQuery] string? lang)
     {
-        return HandleResult(await Mediator.Send(new GetQuizzes.Query { Category = category }));
+        var resolvedLang = GetCurrentLanguage(lang);
+        return HandleResult(await Mediator.Send(new GetQuizzes.Query 
+        { 
+            Category = category, 
+            Lang = resolvedLang 
+        }));
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<QuizDto>> GetQuiz(Guid id)
+    public async Task<ActionResult<QuizDto>> GetQuiz(Guid id, [FromQuery] string? lang)
     {
-        return HandleResult(await Mediator.Send(new GetQuizById.Query { Id = id }));
+        var resolvedLang = GetCurrentLanguage(lang);
+        return HandleResult(await Mediator.Send(new GetQuizById.Query 
+        { 
+            Id = id, 
+            Lang = resolvedLang 
+        }));
     }
 }

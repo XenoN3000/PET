@@ -1,7 +1,6 @@
 using Application.Core;
 using Application.QcProtocols.DTOs;
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using Domain;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +13,7 @@ public static class GetQcProtocols
     public class Query : IRequest<Result<List<QcProtocolDto>>>
     {
         public QcFrequency? Frequency { get; set; }
+        public string? Lang { get; set; }
     }
 
     public class Handler : IRequestHandler<Query, Result<List<QcProtocolDto>>>
@@ -30,9 +30,13 @@ public static class GetQcProtocols
         public async Task<Result<List<QcProtocolDto>>> Handle(Query request, CancellationToken cancellationToken)
         {
             var query = _context.QcProtocols
+                .Include(p => p.Translations)
                 .Include(p => p.Phantom)
+                    .ThenInclude(ph => ph!.Translations)
                 .Include(p => p.Steps.OrderBy(s => s.StepNumber))
+                    .ThenInclude(s => s.Translations)
                 .Include(p => p.AcceptanceCriteria)
+                    .ThenInclude(a => a.Translations)
                 .AsNoTracking();
 
             if (request.Frequency.HasValue)
@@ -42,6 +46,12 @@ public static class GetQcProtocols
 
             var protocols = await query.ToListAsync(cancellationToken);
             var dtos = _mapper.Map<List<QcProtocolDto>>(protocols);
+
+            var lang = string.IsNullOrWhiteSpace(request.Lang) ? "en" : request.Lang;
+            for (int i = 0; i < dtos.Count; i++)
+            {
+                dtos[i].Localize(protocols[i], lang);
+            }
 
             return Result<List<QcProtocolDto>>.Success(dtos);
         }

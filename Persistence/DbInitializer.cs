@@ -9,9 +9,49 @@ public static class DbInitializer
     {
         await context.Database.EnsureCreatedAsync();
 
-        if (!await context.QcProtocols.AnyAsync())
+        await SeedProtocolsAsync(context);
+        await SeedQuizzesAsync(context);
+        await SeedLabExperimentsAsync(context);
+        await SeedAiScenariosAsync(context);
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedProtocolsAsync(DatabaseContext context)
+    {
+        if (await context.QcProtocols.AnyAsync())
         {
-            var protocols = new List<QcProtocol>
+            // If protocols exist but translations are empty, backfill translations
+            if (!await context.QcProtocolTranslations.AnyAsync())
+            {
+                var existingProtocols = await context.QcProtocols
+                    .Include(p => p.Phantom)
+                    .Include(p => p.Steps)
+                    .Include(p => p.AcceptanceCriteria)
+                    .ToListAsync();
+
+                foreach (var protocol in existingProtocols)
+                {
+                    AddProtocolTranslations(protocol);
+                }
+                await context.SaveChangesAsync();
+            }
+            return;
+        }
+
+        var protocols = GetPredefinedProtocols();
+        foreach (var protocol in protocols)
+        {
+            AddProtocolTranslations(protocol);
+        }
+
+        context.QcProtocols.AddRange(protocols);
+        await context.SaveChangesAsync();
+    }
+
+    private static List<QcProtocol> GetPredefinedProtocols()
+    {
+        return new List<QcProtocol>
         {
             // 1. Daily Uniformity & Blank Scan
             new()
@@ -198,10 +238,10 @@ public static class DbInitializer
                     QcProtocolId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                     Name = "NEMA Sensitivity Phantom (70 cm Line Source + 5 Aluminum Sleeves)",
                     Type = "LineSource",
-                    RecommendedIsotope = "F-18 (Fluorodeoxyglucose or aqueous fluoride)",
-                    ActivityLevel = "Low activity to avoid dead-time losses (< 5 MBq at start of scan)",
-                    Dimensions = "700 mm active length plastic tube, wall thickness 1 mm",
-                    PreparationInstructions = "Uniformly fill line source with calibrated activity. Insert into successive aluminum attenuation sleeves."
+                    RecommendedIsotope = "F-18 or Ge-68",
+                    ActivityLevel = "< 5 MBq (to avoid deadtime count losses)",
+                    Dimensions = "70 cm line source, 5 nested aluminum tubes of wall thickness 1.25 mm each",
+                    PreparationInstructions = "Mount line source horizontally along scanner center axis. Collect scans adding one sleeve at a time."
                 },
                 Steps = new List<TestStep>
                 {
@@ -210,8 +250,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                         StepNumber = 1,
-                        Title = "Position Line Source Centered in Gantry",
-                        Instruction = "Suspend line source along scanner central axis (R=0 cm) covering full axial length.",
+                        Title = "Aquire Line Source with Sleeves 1 through 5",
+                        Instruction = "Acquire five separate scans with increasing aluminum wall thickness at r=0 cm (center) and r=10 cm off-center.",
                         IsCritical = true
                     },
                     new()
@@ -219,17 +259,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                         StepNumber = 2,
-                        Title = "Sequential Sleeve Acquisitions",
-                        Instruction = "Acquire prompt and delay coincidence counts for each combination of the 5 metal sleeves.",
-                        IsCritical = true
-                    },
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        QcProtocolId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-                        StepNumber = 3,
-                        Title = "Extrapolate to Zero-Attenuation Sensitivity",
-                        Instruction = "Perform regression analysis of log(rate) versus sleeve thickness to extrapolate sensitivity at zero attenuation.",
+                        Title = "Extrapolate Zero-Attenuation Sensitivity",
+                        Instruction = "Fit exponential decay regression against cumulative aluminum wall thickness to extrapolate sensitivity without attenuation.",
                         IsCritical = true
                     }
                 },
@@ -239,37 +270,37 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-                        ParameterName = "Total 3D Sensitivity @ Center",
+                        ParameterName = "Total System Sensitivity @ Center",
                         ComparisonOperator = ">=",
-                        TargetValue = 7.0,
+                        TargetValue = 7.5,
                         Unit = "cps/kBq",
-                        ToleranceDescription = "Total sensitivity at central axis must be >= 7.0 cps/kBq (or within manufacturer specifications).",
-                        RemedialAction = "Check energy window lower threshold (typically 435 keV) and crystal detection efficiency maps."
+                        ToleranceDescription = "Extrapolated sensitivity at r=0 cm must meet or exceed 7.5 cps/kBq (depending on axial FOV specification).",
+                        RemedialAction = "Check coincidence timing window, lower energy thresholds, and PMT high voltage stability."
                     }
                 }
             },
 
-            // 4. Scatter Fraction & Count Losses
+            // 4. Scatter Fraction and Count Losses (NEMA NU 2)
             new()
             {
                 Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                 Code = "NEMA-NU2-SF",
-                Title = "Scatter Fraction, Count Losses and Randoms",
+                Title = "Scatter Fraction and Count Losses",
                 Standard = "NEMA NU 2-2018 Section 4",
-                Frequency = QcFrequency.Annual,
-                Description = "Evaluates the scanner's count rate capabilities, dead-time behavior, and scatter fraction over a wide range of radioactive activity concentrations.",
-                ClinicalPurpose = "Ensures the scanner does not suffer pulse pile-up or count saturation immediately following high patient injection doses.",
-                AcquisitionParameters = "Dynamic series of acquisitions as activity decays over multiple half-lives (e.g., 14-18 hours for F-18).",
+                Frequency = QcFrequency.Periodic,
+                Description = "Evaluates scanner count rate performance, detector deadtime losses, and scatter fraction across varying activity concentrations up to peak NECR.",
+                ClinicalPurpose = "Identifies peak Noise Equivalent Count Rate (NECR) to optimize patient injected dose and avoid detector saturation artifacts in high-uptake procedures.",
+                AcquisitionParameters = "High activity start (~800 MBq F-18). Consecutive 15-minute frames acquired over 16 to 18 hours until decayed.",
                 Phantom = new PhantomSpec
                 {
                     Id = Guid.NewGuid(),
                     QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                    Name = "NEMA Scatter Phantom (Solid Polyethylene Cylinder)",
+                    Name = "NEMA NU 2 Scatter Phantom (20 cm Polyethylene Cylinder)",
                     Type = "Cylinder",
                     RecommendedIsotope = "F-18",
-                    ActivityLevel = "Starting activity ~ 800 - 1000 MBq",
-                    Dimensions = "200 mm diameter x 700 mm length, line source inserted in 45 mm offset hole",
-                    PreparationInstructions = "Insert line source containing high activity into the eccentric hole (45 mm off-axis) simulating human body torso."
+                    ActivityLevel = "Initial activity: ~800 MBq (21.6 mCi)",
+                    Dimensions = "20 cm diameter x 70 cm solid polyethylene cylinder with 45 mm off-axis line insert",
+                    PreparationInstructions = "Center cylinder on patient table. Thread flexible F-18 line source through the eccentric channel (at r=45 mm)."
                 },
                 Steps = new List<TestStep>
                 {
@@ -278,8 +309,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                         StepNumber = 1,
-                        Title = "Initial High-Activity Scan",
-                        Instruction = "Place phantom on bed with line source positioned closest to the table top. Start acquisition at peak activity.",
+                        Title = "Setup Decay Acquisition Sequence",
+                        Instruction = "Program multi-frame sequence of 25-30 frames over 5 half-lives of F-18 (approx. 10 hours).",
                         IsCritical = true
                     },
                     new()
@@ -287,17 +318,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                         StepNumber = 2,
-                        Title = "Decay Follow-up Acquisition",
-                        Instruction = "Automate repeated scans every 15 minutes as activity decays over 14 hours until true coincidence rate is linear with activity.",
-                        IsCritical = false
-                    },
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                        StepNumber = 3,
-                        Title = "Sinogram Analysis and Scatter Profile Fit",
-                        Instruction = "Extract projections, evaluate tails outside 24 mm central strip, and calculate scatter fraction (SF) and Peak NECR (Noise Equivalent Count Rate).",
+                        Title = "Compute NECR Curve and Scatter Fraction",
+                        Instruction = "Separate prompt, random, and scattered events on transverse sinogram profiles. Calculate peak NECR and scatter fraction at low activity.",
                         IsCritical = true
                     }
                 },
@@ -307,12 +329,12 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                        ParameterName = "System Scatter Fraction (SF)",
+                        ParameterName = "Scatter Fraction (SF)",
                         ComparisonOperator = "<=",
                         TargetValue = 38.0,
                         Unit = "%",
-                        ToleranceDescription = "Scatter fraction must be <= 38.0% for 3D acquisition mode.",
-                        RemedialAction = "Inspect lower energy discriminator threshold setting and coincidence time window."
+                        ToleranceDescription = "System scatter fraction must be <= 38.0% at low activity concentrations.",
+                        RemedialAction = "Check energy window calibration (lower threshold at 435 keV) and energy resolution maps."
                     },
                     new()
                     {
@@ -320,35 +342,35 @@ public static class DbInitializer
                         QcProtocolId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                         ParameterName = "Peak NECR",
                         ComparisonOperator = ">=",
-                        TargetValue = 80.0,
+                        TargetValue = 120.0,
                         Unit = "kcps",
-                        ToleranceDescription = "Peak Noise Equivalent Count Rate must exceed 80 kcps.",
-                        RemedialAction = "Check dead-time compensation calibration and electronic processing bandwidth."
+                        ToleranceDescription = "Peak Noise Equivalent Count Rate must exceed 120 kcps for standard clinical activity ranges.",
+                        RemedialAction = "Inspect coincidence processor buffers and electronic deadtime compensation constants."
                     }
                 }
             },
 
-            // 5. Image Quality & Recovery Coefficients
+            // 5. Image Quality & Accuracy of Corrections (NEMA NU 2)
             new()
             {
                 Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
                 Code = "NEMA-NU2-IQ",
-                Title = "Image Quality and Partial Volume Effect",
+                Title = "Image Quality and Accuracy of Attenuation Corrections",
                 Standard = "NEMA NU 2-2018 Section 7",
-                Frequency = QcFrequency.Periodic,
-                Description = "Simulates clinical torso scanning with hot and cold lesions in a warm background to assess contrast recovery, background variability, and lung residual error.",
-                ClinicalPurpose = "Directly validates clinical oncology performance: measuring SUV accuracy, small lesion detectability, and Partial Volume Effect (PVE) impact.",
-                AcquisitionParameters = "Reconstruction: Clinical TOF-OSEM protocol with attenuation, scatter, and random corrections applied.",
+                Frequency = QcFrequency.Annual,
+                Description = "Simulates total-body clinical oncology imaging using anthropomorphic torso phantom with hot/cold spherical lesions to assess contrast recovery and lung residual error.",
+                ClinicalPurpose = "Directly simulates lesion detectability, standardized uptake value (SUV) quantification accuracy, and CT-based attenuation correction artifacts.",
+                AcquisitionParameters = "Clinical oncology reconstruction protocol (TOF-OSEM with PSF modeling) | Contrast ratio 4:1 (spheres to background)",
                 Phantom = new PhantomSpec
                 {
                     Id = Guid.NewGuid(),
                     QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                    Name = "NEMA IEC Body Phantom with Lung Insert",
-                    Type = "IECBody",
+                    Name = "NEMA IEC Body Phantom with Lung Insert and 6 Spheres",
+                    Type = "Torso",
                     RecommendedIsotope = "F-18",
-                    ActivityLevel = "Background: ~5.3 kBq/mL; Hot Spheres (10, 13, 17, 28 mm): 4:1 or 8:1 contrast ratio; Cold Spheres (22, 37 mm): 0 kBq/mL",
-                    Dimensions = "D-shaped body torso cavity, 6 hollow spheres + low-density lung cylinder insert",
-                    PreparationInstructions = "Fill spheres first using precision syringe. Fill torso background. Insert cold water/lung insert without bubbles."
+                    ActivityLevel = "Background: 5.3 kBq/mL | Spheres (4:1): 21.2 kBq/mL",
+                    Dimensions = "Torso cavity ~9.7 L with 6 internal hollow spheres (diameters: 10, 13, 17, 22, 28, 37 mm) and low-density lung insert",
+                    PreparationInstructions = "Fill spheres carefully with 4:1 activity ratio ensuring zero bubble trapped. Fill background cavity and lung insert."
                 },
                 Steps = new List<TestStep>
                 {
@@ -357,8 +379,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
                         StepNumber = 1,
-                        Title = "Position NEMA IEC Body Phantom",
-                        Instruction = "Place phantom with spheres centered in axial FOV. Center phantom horizontally and vertically using lasers.",
+                        Title = "Acquire Low-Dose CT and PET Emission",
+                        Instruction = "Execute scout, helical CT for attenuation map, and 3-bed-position PET emission acquisition matching standard clinical protocol.",
                         IsCritical = true
                     },
                     new()
@@ -366,17 +388,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
                         StepNumber = 2,
-                        Title = "Clinical Protocol Acquisition",
-                        Instruction = "Acquire scan using clinical oncological time-per-bed (e.g., 2 minutes per bed position) with CT attenuation scan.",
-                        IsCritical = true
-                    },
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                        StepNumber = 3,
-                        Title = "Calculate Contrast Recovery Coefficients (CRC)",
-                        Instruction = "Draw ROIs on the 6 spheres and twelve 37 mm background ROIs across adjacent slices. Calculate percent contrast recovery and lung error.",
+                        Title = "Compute Contrast Recovery Coefficients",
+                        Instruction = "Draw spherical VOIs on each sphere and background ROIs. Calculate Percent Contrast Recovery (QH) for each sphere size and background variability.",
                         IsCritical = true
                     }
                 },
@@ -386,430 +399,569 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                        ParameterName = "CRC (28 mm Hot Sphere)",
+                        ParameterName = "Contrast Recovery (10mm sphere)",
                         ComparisonOperator = ">=",
-                        TargetValue = 65.0,
+                        TargetValue = 45.0,
                         Unit = "%",
-                        ToleranceDescription = "Percent contrast recovery for 28 mm sphere must be >= 65.0%.",
-                        RemedialAction = "Check OSEM iteration/subset convergence and point spread function (PSF) reconstruction settings."
+                        ToleranceDescription = "Percent Contrast Recovery for the smallest 10 mm sphere must be >= 45%.",
+                        RemedialAction = "Optimize point spread function (PSF) deconvolution iterations and filter cutoff frequency."
                     },
                     new()
                     {
                         Id = Guid.NewGuid(),
                         QcProtocolId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-                        ParameterName = "Lung Insert Residual Relative Error",
+                        ParameterName = "Lung Residual Error",
                         ComparisonOperator = "<=",
-                        TargetValue = 18.0,
+                        TargetValue = 10.0,
                         Unit = "%",
-                        ToleranceDescription = "Residual activity in cold lung insert must be <= 18.0% (tests scatter and attenuation correction accuracy).",
-                        RemedialAction = "Verify CT-to-PET spatial registration and HU-to-attenuation linear coefficient conversion curves."
+                        ToleranceDescription = "Residual activity concentration in non-active lung insert must be <= 10.0% of background.",
+                        RemedialAction = "Re-calibrate CT Hounsfield Unit (HU) to 511 keV linear attenuation coefficient scaling table."
+                    }
+                }
+            }
+        };
+    }
+
+    private static void AddProtocolTranslations(QcProtocol protocol)
+    {
+        // 1. English Translation
+        protocol.Translations.Add(new QcProtocolTranslation
+        {
+            Id = Guid.NewGuid(),
+            QcProtocolId = protocol.Id,
+            Language = "en",
+            Title = protocol.Title,
+            Description = protocol.Description,
+            ClinicalPurpose = protocol.ClinicalPurpose,
+            AcquisitionParameters = protocol.AcquisitionParameters
+        });
+
+        // 2. Persian Translation
+        var faTitle = protocol.Code switch
+        {
+            "QC-DAILY-01" => "اسکن بلنک و یکنواختی روزانه",
+            "NEMA-NU2-SR" => "رزولوشن فضایی NEMA NU 2",
+            "NEMA-NU2-SENS" => "حساسیت سیستم NEMA NU 2",
+            "NEMA-NU2-SF" => "کسر پراکندگی و نرخ شمارش NEMA NU 2",
+            "NEMA-NU2-IQ" => "کیفیت تصویر و تصحیحات تضعیف NEMA IEC",
+            _ => protocol.Title
+        };
+
+        var faDesc = protocol.Code switch
+        {
+            "QC-DAILY-01" => "آزمون کنترل کیفی بنیادین روزانه برای ارزیابی پایداری آشکارساز، پاسخ فوتومولتی‌پلایر و شناسایی بلوک‌های کریستال معیوب یا رانش کالیبراسیون.",
+            "NEMA-NU2-SR" => "اندازه‌گیری توانایی سیستم در تفکیک دو چشمه نقطه‌ای رادیواکتیو نزدیک به یکدیگر در سه بعد شعاعی، مماسی و محوری بر اساس استاندارد NEMA NU 2.",
+            "NEMA-NU2-SENS" => "اندازه‌گیری نرخ انطباق واقعی آشکارسازی شده به ازای هر واحد فعالیت رادیواکتیو حاضر در میدان دید اسکنر برای بهینه‌سازی دوز تزریقی.",
+            "NEMA-NU2-SF" => "ارزیابی عملکرد نرخ شمارش اسکنر، تلفات زمان مرده آشکارساز و کسر پراکندگی در غلظت‌های مختلف اکتیویته تا رسیدن به قله NECR.",
+            "NEMA-NU2-IQ" => "شبیه‌سازی تصویربرداری انکولوژی بالینی تمام بدن با فانتوم نیم‌تنه به همراه ضایعات کروی گرم و سرد جهت ارزیابی بازیابی کنتراست و خطای باقی‌مانده ریه.",
+            _ => protocol.Description
+        };
+
+        var faPurpose = protocol.Code switch
+        {
+            "QC-DAILY-01" => "اطمینان از یکنواختی فضایی پاسخ اسکنر و جلوگیری از خطاهای حلقه‌ای (Ring Artifacts)، نقاط گرم کاذب، یا عدم تشخیص ضایعات در تصاویر بیماران.",
+            "NEMA-NU2-SR" => "تعیین مستقیم کوچک‌ترین ضایعه آناتومیک یا گره لنفاوی قابل تفکیک بدون اثر تاری شدید حجم جزئی (Partial Volume Effect).",
+            "NEMA-NU2-SENS" => "حساسیت بالا امکان کاهش دوز تزریقی به بیمار و کاهش زمان تصویربرداری را بدون افت کیفیت تشخیصی فراهم می‌آورد.",
+            "NEMA-NU2-SF" => "شناسایی نقطه اوج نرخ شمارش معادل نوفه (NECR) برای بهینه‌سازی دوز تزریقی به بیمار و جلوگیری از اشباع آشکارساز.",
+            "NEMA-NU2-IQ" => "شبیه‌سازی مستقیم قدرت تشخیص ضایعه، صحت کمی‌سازی SUV و آرتیفکت‌های تصحیح تضعیف مبتنی بر سی‌تی.",
+            _ => protocol.ClinicalPurpose
+        };
+
+        protocol.Translations.Add(new QcProtocolTranslation
+        {
+            Id = Guid.NewGuid(),
+            QcProtocolId = protocol.Id,
+            Language = "fa",
+            Title = faTitle,
+            Description = faDesc,
+            ClinicalPurpose = faPurpose,
+            AcquisitionParameters = protocol.AcquisitionParameters
+        });
+
+        // Add Phantom Translations
+        if (protocol.Phantom != null)
+        {
+            protocol.Phantom.Translations.Add(new PhantomSpecTranslation
+            {
+                Id = Guid.NewGuid(),
+                PhantomSpecId = protocol.Phantom.Id,
+                Language = "en",
+                Name = protocol.Phantom.Name,
+                Type = protocol.Phantom.Type,
+                RecommendedIsotope = protocol.Phantom.RecommendedIsotope,
+                ActivityLevel = protocol.Phantom.ActivityLevel,
+                PreparationInstructions = protocol.Phantom.PreparationInstructions,
+                Dimensions = protocol.Phantom.Dimensions
+            });
+
+            protocol.Phantom.Translations.Add(new PhantomSpecTranslation
+            {
+                Id = Guid.NewGuid(),
+                PhantomSpecId = protocol.Phantom.Id,
+                Language = "fa",
+                Name = protocol.Code switch
+                {
+                    "QC-DAILY-01" => "فانتوم استوانه‌ای یکنواخت Ge-68 / Ga-68",
+                    "NEMA-NU2-SR" => "نگهدارنده چشمه نقطه‌ای / لوله مویین",
+                    "NEMA-NU2-SENS" => "فانتوم حساسیت NEMA (چشمه خطی ۷۰ سانتی‌متری + ۵ غلاف آلومینیومی)",
+                    "NEMA-NU2-SF" => "فانتوم پراکندگی NEMA NU 2 (استوانه پلی‌اتیلن ۲۰ سانتی‌متری)",
+                    "NEMA-NU2-IQ" => "فانتوم بدنه NEMA IEC با قطعه ریه و ۶ گوی",
+                    _ => protocol.Phantom.Name
+                },
+                Type = protocol.Phantom.Type,
+                RecommendedIsotope = protocol.Phantom.RecommendedIsotope,
+                ActivityLevel = protocol.Phantom.ActivityLevel,
+                PreparationInstructions = "با لیزرهای راهنمای اسکنر در امتداد محور مرکزی قرار دهید. مطمئن شوید حباب هوا در مایع وجود ندارد.",
+                Dimensions = protocol.Phantom.Dimensions
+            });
+        }
+
+        // Add Step Translations
+        foreach (var step in protocol.Steps)
+        {
+            step.Translations.Add(new TestStepTranslation
+            {
+                Id = Guid.NewGuid(),
+                TestStepId = step.Id,
+                Language = "en",
+                Title = step.Title,
+                Instruction = step.Instruction,
+                CautionNote = step.CautionNote
+            });
+
+            step.Translations.Add(new TestStepTranslation
+            {
+                Id = Guid.NewGuid(),
+                TestStepId = step.Id,
+                Language = "fa",
+                Title = $"مرحله {step.StepNumber}: {step.Title}",
+                Instruction = step.Instruction,
+                CautionNote = step.CautionNote != null ? $"توجه: {step.CautionNote}" : null
+            });
+        }
+
+        // Add Acceptance Criteria Translations
+        foreach (var criterion in protocol.AcceptanceCriteria)
+        {
+            criterion.Translations.Add(new AcceptanceCriterionTranslation
+            {
+                Id = Guid.NewGuid(),
+                AcceptanceCriterionId = criterion.Id,
+                Language = "en",
+                ParameterName = criterion.ParameterName,
+                ToleranceDescription = criterion.ToleranceDescription,
+                RemedialAction = criterion.RemedialAction
+            });
+
+            criterion.Translations.Add(new AcceptanceCriterionTranslation
+            {
+                Id = Guid.NewGuid(),
+                AcceptanceCriterionId = criterion.Id,
+                Language = "fa",
+                ParameterName = criterion.ParameterName switch
+                {
+                    "Integral Uniformity (IU)" => "یکنواختی انتگرالی (IU)",
+                    "Differential Uniformity (DU)" => "یکنواختی دیفرانسیلی (DU)",
+                    "Radial FWHM @ 1 cm" => "رزولوشن شعاعی FWHM در ۱ سانتی‌متر",
+                    "Axial FWHM @ 1 cm" => "رزولوشن محوری FWHM در ۱ سانتی‌متر",
+                    "Total System Sensitivity @ Center" => "حساسیت کل سیستم در مرکز",
+                    "Scatter Fraction (SF)" => "کسر پراکندگی (SF)",
+                    "Peak NECR" => "اوج نرخ شمارش معادل نوفه (Peak NECR)",
+                    "Contrast Recovery (10mm sphere)" => "بازیابی کنتراست (گوی ۱۰ میلی‌متری)",
+                    "Lung Residual Error" => "خطای باقی‌مانده ریه",
+                    _ => criterion.ParameterName
+                },
+                ToleranceDescription = criterion.ToleranceDescription,
+                RemedialAction = criterion.RemedialAction
+            });
+        }
+    }
+
+    private static async Task SeedQuizzesAsync(DatabaseContext context)
+    {
+        if (await context.Quizzes.AnyAsync())
+        {
+            if (!await context.QuizTranslations.AnyAsync())
+            {
+                var existingQuizzes = await context.Quizzes
+                    .Include(q => q.Questions)
+                        .ThenInclude(qu => qu.Options)
+                    .ToListAsync();
+
+                foreach (var quiz in existingQuizzes)
+                {
+                    AddQuizTranslations(quiz);
+                }
+                await context.SaveChangesAsync();
+            }
+            return;
+        }
+
+        var quizzes = GetPredefinedQuizzes();
+        foreach (var quiz in quizzes)
+        {
+            AddQuizTranslations(quiz);
+        }
+
+        context.Quizzes.AddRange(quizzes);
+        await context.SaveChangesAsync();
+    }
+
+    private static List<Quiz> GetPredefinedQuizzes()
+    {
+        return new List<Quiz>
+        {
+            new()
+            {
+                Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                Title = "Daily QC & Routine Safety",
+                Description = "Test your core clinical competencies on daily uniformity checks, blank scan interpretation, and troubleshooting PMT/SiPM detector drift.",
+                Category = "Daily Routine",
+                DifficultyLevel = "Beginner",
+                EstimatedMinutes = 8,
+                Questions = new List<QuizQuestion>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Order = 1,
+                        QuestionText = "What is the primary physical objective of running a morning Blank Scan without any phantom in the field of view?",
+                        ReferenceProtocol = "QC-DAILY-01",
+                        Options = new List<QuizOption>
+                        {
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "To measure true patient coincidence lines of response (LORs).",
+                                IsCorrect = false,
+                                ClinicalRationale = "Patient coincidence lines only occur when an annihilation source is present."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "To calibrate detector gain, coincidence timing baseline, and identify malfunctioning crystal blocks.",
+                                IsCorrect = true,
+                                ClinicalRationale = "A blank scan monitors coincidence detector baselines and detects dead crystals before scanning patients."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "To measure the room background gamma radiation only.",
+                                IsCorrect = false,
+                                ClinicalRationale = "Room background is secondary; crystal channel gain and deadtime baseline are the primary targets."
+                            }
+                        }
+                    },
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Order = 2,
+                        QuestionText = "According to IAEA and AAPM guidelines, what is the maximum acceptable tolerance for Daily Integral Uniformity (IU)?",
+                        ReferenceProtocol = "QC-DAILY-01",
+                        Options = new List<QuizOption>
+                        {
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "<= 5.0%",
+                                IsCorrect = true,
+                                ClinicalRationale = "Daily Integral Uniformity (IU) across the central 75% phantom diameter must remain <= 5.0%."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "<= 15.0%",
+                                IsCorrect = false,
+                                ClinicalRationale = "15% is excessively large and would cause severe visual ring artifacts in clinical PET scans."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "<= 0.5%",
+                                IsCorrect = false,
+                                ClinicalRationale = "Poisson noise in standard acquisition makes 0.5% technically unachievable within reasonable scan duration."
+                            }
+                        }
+                    }
+                }
+            },
+            new()
+            {
+                Id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                Title = "NEMA NU 2 Standards & Performance",
+                Description = "Master the evaluation of spatial resolution, system sensitivity, scatter fraction, and contrast recovery.",
+                Category = "NEMA Standards",
+                DifficultyLevel = "Advanced",
+                EstimatedMinutes = 12,
+                Questions = new List<QuizQuestion>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Order = 1,
+                        QuestionText = "Why does radial spatial resolution degrade as the point source moves from scanner center (1 cm) toward peripheral radial positions (10 cm and 20 cm)?",
+                        ReferenceProtocol = "NEMA-NU2-SR",
+                        Options = new List<QuizOption>
+                        {
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "Due to the parallax / Depth of Interaction (DOI) effect in scintillation crystals.",
+                                IsCorrect = true,
+                                ClinicalRationale = "Annihilation photons entering peripheral crystals obliquely penetrate across crystal boundaries before interacting, causing parallax blurring."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "Because electronic noise increases at the edges of the detector ring.",
+                                IsCorrect = false,
+                                ClinicalRationale = "Electronic noise is uniform across identical front-end ASIC readouts."
+                            },
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                OptionText = "Due to increased Compton scatter in the air inside the gantry bore.",
+                                IsCorrect = false,
+                                ClinicalRationale = "Air attenuation and scatter are negligible over standard gantry bore dimensions."
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static void AddQuizTranslations(Quiz quiz)
+    {
+        // English
+        quiz.Translations.Add(new QuizTranslation
+        {
+            Id = Guid.NewGuid(),
+            QuizId = quiz.Id,
+            Language = "en",
+            Title = quiz.Title,
+            Description = quiz.Description,
+            Category = quiz.Category,
+            DifficultyLevel = quiz.DifficultyLevel
+        });
+
+        // Persian
+        quiz.Translations.Add(new QuizTranslation
+        {
+            Id = Guid.NewGuid(),
+            QuizId = quiz.Id,
+            Language = "fa",
+            Title = quiz.Category == "Daily Routine" ? "کنترل کیفی روزانه و حفاظت پرتوی" : "استانداردها و ارزیابی عملکرد NEMA NU 2",
+            Description = quiz.Category == "Daily Routine"
+                ? "ارزیابی صلاحیت‌های بالینی در کنترل کیفی روزانه، تحلیل اسکن بلنک و عیب‌یابی رانش آشکارسازهای PMT/SiPM."
+                : "تسلط بر ارزیابی رزولوشن فضایی، حساسیت سیستم، کسر پراکندگی و صحت بازیابی کنتراست.",
+            Category = quiz.Category == "Daily Routine" ? "روال روزانه" : "استانداردهای NEMA",
+            DifficultyLevel = quiz.DifficultyLevel == "Beginner" ? "مقدماتی" : "پیشرفته"
+        });
+
+        foreach (var q in quiz.Questions)
+        {
+            q.Translations.Add(new QuizQuestionTranslation
+            {
+                Id = Guid.NewGuid(),
+                QuizQuestionId = q.Id,
+                Language = "en",
+                QuestionText = q.QuestionText,
+                ReferenceProtocol = q.ReferenceProtocol
+            });
+
+            q.Translations.Add(new QuizQuestionTranslation
+            {
+                Id = Guid.NewGuid(),
+                QuizQuestionId = q.Id,
+                Language = "fa",
+                QuestionText = q.QuestionText switch
+                {
+                    "What is the primary physical objective of running a morning Blank Scan without any phantom in the field of view?"
+                        => "هدف فیزیکی اصلی از اجرای اسکن بلنک صبحگاهی بدون حضور فانتوم در میدان دید چیست؟",
+                    "According to IAEA and AAPM guidelines, what is the maximum acceptable tolerance for Daily Integral Uniformity (IU)?"
+                        => "بر اساس راهنماهای IAEA و AAPM، حداکثر تلورانس مجاز برای یکنواختی انتگرالی روزانه (IU) چقدر است؟",
+                    "Why does radial spatial resolution degrade as the point source moves from scanner center (1 cm) toward peripheral radial positions (10 cm and 20 cm)?"
+                        => "چرا با دور شدن چشمه نقطه‌ای از مرکز اسکنر به سمت موقعیت‌های شعاعی محیطی، رزولوشن فضایی شعاعی کاهش می‌یابد؟",
+                    _ => q.QuestionText
+                },
+                ReferenceProtocol = q.ReferenceProtocol
+            });
+
+            foreach (var opt in q.Options)
+            {
+                opt.Translations.Add(new QuizOptionTranslation
+                {
+                    Id = Guid.NewGuid(),
+                    QuizOptionId = opt.Id,
+                    Language = "en",
+                    OptionText = opt.OptionText,
+                    ClinicalRationale = opt.ClinicalRationale
+                });
+
+                opt.Translations.Add(new QuizOptionTranslation
+                {
+                    Id = Guid.NewGuid(),
+                    QuizOptionId = opt.Id,
+                    Language = "fa",
+                    OptionText = opt.OptionText switch
+                    {
+                        "To measure true patient coincidence lines of response (LORs)."
+                            => "اندازه‌گیری خطوط پاسخ انطباق واقعی (LOR) بیمار.",
+                        "To calibrate detector gain, coincidence timing baseline, and identify malfunctioning crystal blocks."
+                            => "کالیبراسیون بهره آشکارساز، خط پایه زمانی انطباق و شناسایی بلوک‌های کریستال معیوب.",
+                        "To measure the room background gamma radiation only."
+                            => "صرفاً اندازه‌گیری تابش گامای زمینه اتاق.",
+                        "<= 5.0%" => "<= ۵.۰٪",
+                        "<= 15.0%" => "<= ۱۵.۰٪",
+                        "<= 0.5%" => "<= ۰.۵٪",
+                        "Due to the parallax / Depth of Interaction (DOI) effect in scintillation crystals."
+                            => "به دلیل پدیده پارالاکس یا اثر عمق برهمکنش (DOI) در کریستال‌های سنتیلاتور.",
+                        "Because electronic noise increases at the edges of the detector ring."
+                            => "به دلیل افزایش نوفه الکترونیکی در لبه‌های رینگ آشکارساز.",
+                        "Due to increased Compton scatter in the air inside the gantry bore."
+                            => "به دلیل افزایش پراکندگی کامپتون در هوای داخل گانتری.",
+                        _ => opt.OptionText
+                    },
+                    ClinicalRationale = opt.ClinicalRationale
+                });
+            }
+        }
+    }
+
+    private static async Task SeedLabExperimentsAsync(DatabaseContext context)
+    {
+        if (await context.LabExperiments.AnyAsync()) return;
+
+        var labs = new List<LabExperiment>
+        {
+            new()
+            {
+                Id = Guid.Parse("f1111111-1111-1111-1111-111111111111"),
+                Slug = "spatial-resolution",
+                Standard = "NEMA NU 2-2018",
+                DefaultParametersJson = "{\"fwhmTargetMm\":4.5,\"fwtmTargetMm\":8.8,\"pointActivityMbq\":5.0}",
+                Translations = new List<LabExperimentTranslation>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "en",
+                        Title = "Spatial Resolution (FWHM) Workbench",
+                        Subtitle = "Point source profile extraction and point spread function (PSF) evaluation",
+                        Description = "Interactive point source simulation allowing translation across radial and tangential axes to observe Depth of Interaction (DOI) resolution degradation.",
+                        Instructions = "Position the virtual point source, extract the 1D Gaussian response profile, and calculate Full Width at Half Maximum (FWHM)."
+                    },
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "fa",
+                        Title = "میزکار رزولوشن فضایی (FWHM)",
+                        Subtitle = "استخراج پروفایل چشمه نقطه‌ای و ارزیابی تابع گسترش نقطه (PSF)",
+                        Description = "شبیه‌سازی تعاملی چشمه نقطه‌ای با قابلیت جابجایی در امتداد محورهای شعاعی و مماسی جهت مشاهده تضعیف رزولوشن ناشی از اثر عمق برهمکنش (DOI).",
+                        Instructions = "چشمه نقطه‌ای مجازی را در میدان دید قرار دهید، پروفایل پاسخ ۱ بعدی را استخراج کرده و مقدار پهنا در نصف ماکزیمم (FWHM) را محاسبه کنید."
+                    }
+                }
+            },
+            new()
+            {
+                Id = Guid.Parse("f2222222-2222-2222-2222-222222222222"),
+                Slug = "daily-uniformity",
+                Standard = "IAEA / AAPM",
+                DefaultParametersJson = "{\"targetIu\":5.0,\"targetDu\":3.5,\"baseCounts\":3200,\"defaultNoise\":0.12}",
+                Translations = new List<LabExperimentTranslation>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "en",
+                        Title = "Daily Uniformity (IU & DU) Workbench",
+                        Subtitle = "Cylinder phantom slice inspection and crystal defect detection",
+                        Description = "Calculate Integral Uniformity and Differential Uniformity across cylindrical phantom ROIs with live tolerance evaluation.",
+                        Instructions = "Adjust Poisson noise or simulate detector block dropouts, then inspect ROI uniformity indices against IAEA thresholds."
+                    },
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "fa",
+                        Title = "میزکار یکنواختی روزانه (IU و DU)",
+                        Subtitle = "بررسی مقطع فانتوم استوانه‌ای و کشف نقایص بلوک کریستال",
+                        Description = "محاسبه یکنواختی انتگرالی و دیفرانسیلی در نواحی مورد نظر فانتوم استوانه‌ای به همراه ارزیابی بلادرنگ با حدود استاندارد بالینی.",
+                        Instructions = "نوفه پواسون را تنظیم کرده یا افت سیگنال در یک بلوک آشکارساز را شبیه‌سازی کنید؛ سپس شاخص‌های یکنواختی را با آستانه‌های IAEA مقایسه نمایید."
                     }
                 }
             }
         };
 
-            context.QcProtocols.AddRange(protocols);
-            await context.SaveChangesAsync();
-        }
+        context.LabExperiments.AddRange(labs);
+        await context.SaveChangesAsync();
+    }
 
-        if (!await context.Quizzes.AnyAsync())
+    private static async Task SeedAiScenariosAsync(DatabaseContext context)
+    {
+        if (await context.AiScenarios.AnyAsync()) return;
+
+        var scenarios = new List<AiScenario>
         {
-            var quizzes = new List<Quiz>
+            new()
             {
-                // Quiz 1: Daily Quality Control & Detector Stability
-                new()
+                Id = Guid.Parse("a1111111-1111-1111-1111-111111111111"),
+                Code = "PVC-RECOVERY",
+                DefaultDoseReductionFactor = 4.0,
+                DefaultLesionDiameterMm = 15.0,
+                Translations = new List<AiScenarioTranslation>
                 {
-                    Id = Guid.Parse("a1111111-1111-1111-1111-111111111111"),
-                    Title = "Daily QC & Detector Stability",
-                    Description = "Assess your clinical knowledge of morning blank scans, daily uniformity checks, and detector failure troubleshooting.",
-                    Category = "Daily Routine",
-                    DifficultyLevel = "Beginner",
-                    EstimatedMinutes = 8,
-                    Questions = new List<QuizQuestion>
+                    new()
                     {
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a1111111-1111-1111-1111-111111111111"),
-                            Order = 1,
-                            QuestionText = "What is the primary purpose of performing a daily morning blank scan before patient acquisitions?",
-                            ReferenceProtocol = "IAEA Human Health Series No. 1 / AAPM Report 108",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Calibrate detector coincidence baseline and detect failed PMTs or crystal block drift.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! The blank scan measures unattenuated coincidence events across all detector pairs to detect faulty channels, gain shifts, or bad PMTs before injecting patients."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Measure the spatial resolution at 20 cm radial offset.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Spatial resolution requires point sources placed at specific off-axis coordinates according to NEMA NU 2 Section 3."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Calculate the absolute scatter fraction of the patient population.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Scatter fraction is measured using a 70 cm line source inside a solid polyethylene cylinder (NEMA NU 2 Section 5)."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Sterilize the detector ring gantry electronically.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Electronic sterilization is not a physical PET acquisition procedure."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a1111111-1111-1111-1111-111111111111"),
-                            Order = 2,
-                            QuestionText = "What is the standard IAEA acceptance threshold for Daily Integral Uniformity (IU) in a uniform cylindrical phantom?",
-                            ReferenceProtocol = "IAEA HHS No. 1 Section 3.2",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "IU <= 5.0%",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! IAEA guidelines specify that Integral Uniformity across the central reconstructed slice must not exceed 5.0%."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "IU <= 1.0%",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. While higher uniformity is desirable, Poisson statistical noise in standard 10-minute scans typically keeps IU around 3-4%."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "IU <= 15.0%",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. An IU of 15% indicates severe non-uniformity that would cause unacceptable diagnostic misinterpretation."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "IU has no upper tolerance limit.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Daily uniformity has strict clinical upper tolerance limits to ensure quantitative SUV accuracy."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a1111111-1111-1111-1111-111111111111"),
-                            Order = 3,
-                            QuestionText = "If a sharp concentric circular ring artifact appears in reconstructed cylinder images, what is the most likely root cause?",
-                            ReferenceProtocol = "IAEA HHS No. 1 Section 3.3 (Troubleshooting)",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "A malfunctioning detector block or crystal PMT channel causing a sinogram zero-count strip.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! When filtered backprojection or OSEM reconstructs a sinogram with a dead or corrupted crystal strip, it manifests as a circular ring artifact."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Patient bed elevation motor calibration error.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Bed motor errors cause axial slice shifts or registration mismatches, not concentric rings."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Normal radioactive decay of the Ge-68 isotope.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Ge-68 has a 271-day half-life; steady physical decay is corrected by software and does not cause ring artifacts."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Excessive ambient room humidity.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. While HVAC stability is required for electronics, humidity does not produce localized ring artifacts."
-                                }
-                            }
-                        }
-                    }
-                },
-                // Quiz 2: Spatial Resolution & NEMA NU 2
-                new()
-                {
-                    Id = Guid.Parse("a2222222-2222-2222-2222-222222222222"),
-                    Title = "Spatial Resolution (NEMA NU 2)",
-                    Description = "Master the principles of Point Spread Function (PSF), FWHM/FWTM calculation, and parallax effect.",
-                    Category = "NEMA Standards",
-                    DifficultyLevel = "Intermediate",
-                    EstimatedMinutes = 10,
-                    Questions = new List<QuizQuestion>
+                        Id = Guid.NewGuid(),
+                        Language = "en",
+                        Title = "Partial Volume Effect & Contrast Recovery",
+                        ClinicalContext = "Small lesions smaller than 2-3x the system FWHM suffer from severe underestimation of SUVmax due to spill-out into adjacent soft tissue.",
+                        MethodologyDescription = "Point Spread Function deconvolution and deep neural network priors recover genuine lesion activity concentrations.",
+                        ExpectedOutcome = "Contrast Recovery increases from ~45% to >85% for sub-15mm hepatic and pulmonary nodules."
+                    },
+                    new()
                     {
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a2222222-2222-2222-2222-222222222222"),
-                            Order = 1,
-                            QuestionText = "According to NEMA NU 2-2018 Section 3, what source geometry and radionuclide are specified for spatial resolution testing?",
-                            ReferenceProtocol = "NEMA NU 2-2018 Section 3",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "A point source with active dimensions < 1.0 mm suspended in air with F-18.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! NEMA NU 2 stipulates sub-millimeter point sources suspended in air to minimize photon scattering while assessing intrinsic scanner resolution."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "A 20 cm diameter uniform water cylinder with Ga-68.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Uniform cylinders are used for daily uniformity or sensitivity, not point-spread resolution."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "A solid aluminum bar with Co-57 transmission source.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Co-57 single-photon transmission was used in legacy scanners, not modern coincidence PET resolution testing."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "An anthropomorphic lung torso phantom.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Anthropomorphic phantoms assess image quality, contrast recovery, and attenuation correction."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a2222222-2222-2222-2222-222222222222"),
-                            Order = 2,
-                            QuestionText = "How is Full Width at Half Maximum (FWHM) calculated from an experimental line profile?",
-                            ReferenceProtocol = "NEMA NU 2-2018 Section 3.4",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Distance between profile coordinates where net intensity equals 50% of peak height via linear interpolation.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! NEMA NU 2 requires linear interpolation between adjacent samples spanning 50% of the maximum peak value above background."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Physical width of a single detector crystal face in millimeters.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Crystal size influences resolution, but FWHM is measured from reconstructed image profile data."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Distance between points where profile drops to 10% of maximum.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. 10% of maximum defines the Full Width at Tenth Maximum (FWTM), measuring the profile tails."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Total area under the Gaussian curve divided by scan time.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Profile area reflects total counts or sensitivity, not spatial resolution width."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a2222222-2222-2222-2222-222222222222"),
-                            Order = 3,
-                            QuestionText = "Why does radial spatial resolution degrade significantly as a point source moves from the scanner center to 10 cm or 20 cm off-axis?",
-                            ReferenceProtocol = "NEMA NU 2-2018 & Cherry Physics",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Parallax effect (Depth of Interaction ambiguity) causing oblique crystal penetration.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! Photons striking off-center crystals enter obliquely and can deposit energy in adjacent crystals before interacting, widening the radial point spread function."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Increased positron range of Fluorine-18 at the detector edges.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Positron kinetic energy and range depend on isotope physics, not location in the scanner bore."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Slowing down of the electronic coincidence clock at radial edges.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Electronic clock frequency is uniform across all ASIC processing channels."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Earth's gravitational force on the 511 keV annihilation photons.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Gravitational deflection on gamma photons over 1 meter is completely negligible."
-                                }
-                            }
-                        }
-                    }
-                },
-                // Quiz 3: Deep Learning & Partial Volume Correction
-                new()
-                {
-                    Id = Guid.Parse("a3333333-3333-3333-3333-333333333333"),
-                    Title = "AI Denoising & Partial Volume Effect",
-                    Description = "Evaluate your understanding of convolutional networks, U-Net skip connections, low-dose restoration, and SUV recovery.",
-                    Category = "AI & Processing",
-                    DifficultyLevel = "Advanced",
-                    EstimatedMinutes = 12,
-                    Questions = new List<QuizQuestion>
-                    {
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a3333333-3333-3333-3333-333333333333"),
-                            Order = 1,
-                            QuestionText = "What essential function do skip connections perform in a U-Net architecture for low-dose PET denoising?",
-                            ReferenceProtocol = "Ronneberger et al. / Academic Thesis Proposal",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Transfer high-resolution spatial feature maps and lesion edges directly from encoder to decoder.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! Max-pooling in the contracting path abstracts semantic features but loses fine spatial location; skip connections bypass downsampling to preserve sharp lesion boundaries."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Eliminate the need for backpropagation training.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Skip connections still require standard gradient backpropagation during deep network optimization."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Reduce the total number of convolutional layers to zero.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Skip connections connect convolutional layers; they do not replace them."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Automatically segment CT bones into Hounsfield units.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. CT segmentation is a separate pre-processing task; skip connections facilitate multi-scale feature propagation."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a3333333-3333-3333-3333-333333333333"),
-                            Order = 2,
-                            QuestionText = "What is the primary physical cause of the Partial Volume Effect (PVE) in small lesions (< 2x scanner FWHM)?",
-                            ReferenceProtocol = "NEMA NU 2 Section 7 (Image Quality) / IAEA HHS No. 1",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Finite scanner spatial resolution causing spill-out of lesion counts into surrounding lower-activity tissue.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! When a structure is smaller than roughly twice the system FWHM, blurring causes counts to 'spill out', leading to significant underestimation of true SUV."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Biological resistance of tumor cells against F-18 FDG uptake.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. PVE is an imaging physics artifact caused by finite resolution, not biological uptake resistance."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Detector dead-time saturation inside the lesion area.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Dead-time affects high total event rates across entire detector blocks, not localized micro-lesions."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "Failure to apply physical decay correction for Carbon-11.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Decay correction adjusts for elapsed time, not geometric resolution blurring."
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            Id = Guid.NewGuid(),
-                            QuizId = Guid.Parse("a3333333-3333-3333-3333-333333333333"),
-                            Order = 3,
-                            QuestionText = "Why is Structural Similarity Index (SSIM) clinically superior to Mean Squared Error (MSE) when assessing restored PET images?",
-                            ReferenceProtocol = "Wang et al. SSIM / Medical Physics Literature",
-                            Options = new List<QuizOption>
-                            {
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "SSIM models human visual perception by independently comparing luminance, contrast, and structural texture.",
-                                    IsCorrect = true,
-                                    ClinicalRationale = "Correct! MSE equally penalizes smooth low-frequency shifts and high-frequency structural edges, whereas SSIM specifically gauges diagnostic texture and anatomical fidelity."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "SSIM values can only be negative decibel values.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. SSIM ranges between 0.0 and 1.0, where 1.0 represents perfect structural congruence."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "SSIM does not require a ground-truth reference image.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. SSIM is a full-reference objective quality metric that compares target against gold standard."
-                                },
-                                new()
-                                {
-                                    Id = Guid.NewGuid(),
-                                    OptionText = "SSIM only evaluates binary segmentation masks.",
-                                    IsCorrect = false,
-                                    ClinicalRationale = "Incorrect. Binary segmentation masks are evaluated by Dice coefficient; SSIM evaluates continuous grayscale image textures."
-                                }
-                            }
-                        }
+                        Id = Guid.NewGuid(),
+                        Language = "fa",
+                        Title = "اثر حجم جزئی و بازیابی کنتراست (PVC)",
+                        ClinicalContext = "ضایعات کوچک‌تر از ۲ تا ۳ برابر FWHM سیستم به دلیل خروج فوتون‌ها به بافت‌های مجاور (Spill-out)، دچار کم‌تخمینی شدید مقدار SUVmax می‌شوند.",
+                        MethodologyDescription = "استفاده از واپیچش تابع گسترش نقطه (PSF) و شبکه‌های عصبی عمیق جهت بازیابی غلظت واقعی رادیوداروی تجمع یافته در ضایعه.",
+                        ExpectedOutcome = "افزایش ضریب بازیابی کنتراست از ۴۵٪ به بیش از ۸۵٪ برای گره‌های ریوی و کبدی کوچک‌تر از ۱۵ میلی‌متر."
                     }
                 }
-            };
+            },
+            new()
+            {
+                Id = Guid.Parse("a2222222-2222-2222-2222-222222222222"),
+                Code = "LOW-DOSE-DENOISING",
+                DefaultDoseReductionFactor = 4.0,
+                DefaultLesionDiameterMm = 15.0,
+                Translations = new List<AiScenarioTranslation>
+                {
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "en",
+                        Title = "Ultra-Low-Dose PET Denoising via Deep Learning",
+                        ClinicalContext = "Reducing patient injected radiopharmaceutical dose to 25% (4x dose reduction) introduces extreme Poisson noise, obscuring low-contrast lesions.",
+                        MethodologyDescription = "Trained residual convolutional networks restore high-count diagnostic quality from noisy low-dose sinograms.",
+                        ExpectedOutcome = "Recovers Peak Signal-to-Noise Ratio (PSNR) from 18 dB to 31 dB while preserving true lesion boundaries."
+                    },
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        Language = "fa",
+                        Title = "حذف نویز در پت با دوز فوق‌العاده پایین با یادگیری عمیق",
+                        ClinicalContext = "کاهش دوز تزریقی به بیمار به ۲۵٪ (کاهش دوز ۴ برابری) باعث ایجاد نوفه پواسون شدید و پنهان شدن ضایعات با کنتراست پایین می‌شود.",
+                        MethodologyDescription = "شبکه‌های کانولوشنالی باقی‌مانده (ResNet) کیفیت تشخیصی معادل دوز استاندارد را از داده‌های نوفه‌دار بازسازی می‌کنند.",
+                        ExpectedOutcome = "ارتقای نسبت سیگنال به نوفه (PSNR) از ۱۸ دسی‌بل به ۳۱ دسی‌بل همزمان با حفظ دقیق مرزهای آناتومیک ضایعه."
+                    }
+                }
+            }
+        };
 
-            context.Quizzes.AddRange(quizzes);
-            await context.SaveChangesAsync();
-        }
+        context.AiScenarios.AddRange(scenarios);
+        await context.SaveChangesAsync();
     }
 }

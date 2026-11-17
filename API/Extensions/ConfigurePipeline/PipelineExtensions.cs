@@ -27,7 +27,8 @@ public static class PipelineExtensions
 
     public static WebApplication AddUseStaticFiles(this WebApplication app, IWebHostEnvironment environment)
     {
-
+        app.UseDefaultFiles();
+        app.UseStaticFiles();
         return app;
     }
 
@@ -48,6 +49,12 @@ public static class PipelineExtensions
     public static WebApplication AddUseMapControllers(this WebApplication app)
     {
         app.MapControllers();
+        return app;
+    }
+
+    public static WebApplication AddUseSpaFallback(this WebApplication app)
+    {
+        app.MapFallbackToFile("index.html");
         return app;
     }
 }

@@ -10,4 +10,5 @@ public class Quiz
     public int EstimatedMinutes { get; set; } = 10;
 
     public ICollection<QuizQuestion> Questions { get; set; } = new List<QuizQuestion>();
+    public ICollection<QuizTranslation> Translations { get; set; } = new List<QuizTranslation>();
 }

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   generatePointSourceGrid, 
   extractLineProfile, 
@@ -20,6 +21,7 @@ import {
 import { Activity, Sliders, Info } from 'lucide-react';
 
 export const SpatialResolutionLab: React.FC = () => {
+  const { t } = useTranslation();
   const [sourceRadiusMm, setSourceRadiusMm] = useState<number>(10); // 10 mm = 1 cm
   const [smoothingSigma, setSmoothingSigma] = useState<number>(1.8); // FWHM ~ 4.2mm default
   const [noiseLevel, setNoiseLevel] = useState<number>(0.15);
@@ -75,10 +77,10 @@ export const SpatialResolutionLab: React.FC = () => {
         <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-bold text-slate-900 dark:text-white">
-            NEMA NU 2 Spatial Resolution Workbench
+            {t('resolutionLab.title')}
           </p>
           <p className="leading-relaxed">
-            Measures the scanner's point spread function (PSF). Click on the 2D reconstructed image or adjust the sliders to change radial distance, reconstruction smoothing, and statistical noise. The line profile updates dynamically to derive FWHM and FWTM.
+            {t('resolutionLab.desc')}
           </p>
         </div>
       </div>
@@ -87,7 +89,7 @@ export const SpatialResolutionLab: React.FC = () => {
         {/* Left Column: Canvas Viewer & Simulation Controls (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           <PhantomCanvasViewer
-            title="Point Source Phantom (2D Axial Slice)"
+            title={t('resolutionLab.sliceTitle')}
             grid={grid}
             colormap={colormap}
             onColormapChange={setColormap}
@@ -99,13 +101,13 @@ export const SpatialResolutionLab: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs">
             <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-blue-500" />
-              <span>Acquisition & Geometry Controls</span>
+              <span>{t('resolutionLab.controlsTitle')}</span>
             </span>
 
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">Radial Offset (NEMA specifies 1cm, 10cm, 20cm)</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('resolutionLab.radialOffset')}</span>
                   <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{(sourceRadiusMm / 10).toFixed(1)} cm</span>
                 </div>
                 <div className="flex gap-2">
@@ -128,7 +130,7 @@ export const SpatialResolutionLab: React.FC = () => {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">Detector Intrinsic Blurring / Filter Width</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('resolutionLab.reconstructionFilter')}</span>
                   <span className="font-mono">{smoothingSigma} px</span>
                 </div>
                 <input
@@ -144,7 +146,7 @@ export const SpatialResolutionLab: React.FC = () => {
 
               <div>
                 <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500 dark:text-slate-400">Statistical Noise (Poisson)</span>
+                  <span className="text-slate-500 dark:text-slate-400">{t('resolutionLab.statisticalNoise')}</span>
                   <span className="font-mono">{(noiseLevel * 100).toFixed(0)}%</span>
                 </div>
                 <input
@@ -159,7 +161,7 @@ export const SpatialResolutionLab: React.FC = () => {
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Profile Direction:</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('resolutionLab.profileAxis')}</span>
                 <div className="flex gap-1">
                   <button
                     type="button"
@@ -168,7 +170,7 @@ export const SpatialResolutionLab: React.FC = () => {
                       profileAxis === 'horizontal' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Radial (Horiz)
+                    {t('resolutionLab.horizontal')}
                   </button>
                   <button
                     type="button"
@@ -177,7 +179,7 @@ export const SpatialResolutionLab: React.FC = () => {
                       profileAxis === 'vertical' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Tangential (Vert)
+                    {t('resolutionLab.vertical')}
                   </button>
                 </div>
               </div>
@@ -192,10 +194,10 @@ export const SpatialResolutionLab: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Activity className="w-4 h-4 text-blue-500" />
-                <span>Line Intensity Response Profile</span>
+                <span>{t('resolutionLab.lineProfileTitle')}</span>
               </span>
               <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400">
-                Peak: {fwhmResult.peakValue} counts
+                {t('resolutionLab.peakCounts', { count: fwhmResult.peakValue })}
               </span>
             </div>
 
@@ -234,40 +236,40 @@ export const SpatialResolutionLab: React.FC = () => {
           {/* Numerical Results Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Radial FWHM</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('resolutionLab.fwhm')}</p>
               <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 mt-1">
                 {fwhmResult.fwhmMm} <span className="text-xs font-normal">mm</span>
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Full Width at Half Max</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t('resolutionLab.fullWidthHalfMax')}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Radial FWTM</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('resolutionLab.fwtm')}</p>
               <p className="text-2xl font-bold font-mono text-amber-500 mt-1">
                 {fwhmResult.fwhmMm ? fwhmResult.fwtmMm : 0} <span className="text-xs font-normal">mm</span>
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Full Width at Tenth Max</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t('resolutionLab.fullWidthTenthMax')}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">FWTM / FWHM Ratio</p>
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{t('resolutionLab.ratio')}</p>
               <p className="text-2xl font-bold font-mono text-slate-800 dark:text-slate-200 mt-1">
                 {fwhmResult.fwhmMm ? (fwhmResult.fwtmMm / fwhmResult.fwhmMm).toFixed(2) : 0}
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Ideal Gaussian = 1.82</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{t('resolutionLab.idealGaussian')}</p>
             </div>
           </div>
 
           {/* Acceptance Criteria Status Badge */}
           <AcceptanceBadge
             isPass={isPass}
-            parameterName="Spatial Resolution (Radial FWHM @ 1cm)"
+            parameterName={t('resolutionLab.fwhmParam')}
             currentValue={fwhmResult.fwhmMm}
             targetValue={targetFwhm}
             unit="mm"
             comparisonOperator="<="
-            toleranceDescription="FWHM must be <= 4.5 mm at 1 cm radius from FOV center."
-            remedialAction="Check reconstruction filter cutoff frequency, crystal identification mapping matrices, and table centering laser alignment."
+            toleranceDescription={t('resolutionLab.fwhmTolerance')}
+            remedialAction={t('resolutionLab.fwhmRemedy')}
           />
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import type { QcProtocolDto } from '../types/protocol';
 import { 
@@ -15,6 +16,7 @@ import {
 
 export const ProtocolDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const { t, i18n } = useTranslation();
   const [protocol, setProtocol] = useState<QcProtocolDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,8 @@ export const ProtocolDetailPage = () => {
 
   useEffect(() => {
     if (!id) return;
-    apiService.getProtocolById(id)
+    setLoading(true);
+    apiService.getProtocolById(id, i18n.language)
       .then(data => {
         setProtocol(data);
         setLoading(false);
@@ -31,26 +34,26 @@ export const ProtocolDetailPage = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, [id]);
+  }, [id, i18n.language]);
 
   const toggleStep = (stepId: string) => {
     setCompletedSteps(prev => ({ ...prev, [stepId]: !prev[stepId] }));
   };
 
   if (loading) {
-    return <div className="p-16 text-center text-sm text-slate-400">Loading protocol details...</div>;
+    return <div className="p-16 text-center text-sm text-slate-400">{t('dashboard.loading')}</div>;
   }
 
   if (error || !protocol) {
     return (
       <div className="space-y-4">
         <Link to="/protocols" className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Protocols</span>
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+          <span>{t('protocolDetail.back')}</span>
         </Link>
         <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
-          <span>{error || 'Protocol not found'}</span>
+          <span>{error || t('protocolDetail.notFound')}</span>
         </div>
       </div>
     );
@@ -64,8 +67,8 @@ export const ProtocolDetailPage = () => {
           to="/protocols"
           className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Protocols Catalog</span>
+          <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
+          <span>{t('protocolDetail.back')}</span>
         </Link>
       </div>
 
@@ -82,9 +85,9 @@ export const ProtocolDetailPage = () => {
               ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
               : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400'
           }`}>
-            {protocol.frequency} Check
+            {t(`protocols.${protocol.frequency.toLowerCase()}`, protocol.frequency)}
           </span>
-          <span className="text-xs text-slate-400 flex items-center gap-1 ml-2">
+          <span className="text-xs text-slate-400 flex items-center gap-1 ml-2 rtl:ml-0 rtl:mr-2">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
             {protocol.standard}
           </span>
@@ -104,7 +107,7 @@ export const ProtocolDetailPage = () => {
         <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-sm">
             <FileText className="w-4 h-4" />
-            <span>Clinical Diagnostic Objective</span>
+            <span>{t('protocolDetail.purpose')}</span>
           </div>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             {protocol.clinicalPurpose}
@@ -114,7 +117,7 @@ export const ProtocolDetailPage = () => {
         <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
           <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm">
             <Sliders className="w-4 h-4" />
-            <span>Acquisition Parameters</span>
+            <span>{t('protocolDetail.parameters')}</span>
           </div>
           <p className="text-xs font-mono bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 leading-relaxed">
             {protocol.acquisitionParameters}
@@ -128,7 +131,7 @@ export const ProtocolDetailPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold text-sm">
               <Radio className="w-4 h-4" />
-              <span>Required Phantom & Radioisotope Setup</span>
+              <span>{t('protocolDetail.phantomSetup')}</span>
             </div>
             <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-900">
               {protocol.phantom.type}
@@ -137,22 +140,22 @@ export const ProtocolDetailPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950">
-              <span className="text-slate-400 block text-[11px] mb-1">Phantom Model</span>
+              <span className="text-slate-400 block text-[11px] mb-1">{t('protocols.phantom')}</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">{protocol.phantom.name}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950">
-              <span className="text-slate-400 block text-[11px] mb-1">Recommended Isotope</span>
+              <span className="text-slate-400 block text-[11px] mb-1">{t('protocolDetail.isotope')}</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">{protocol.phantom.recommendedIsotope}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950">
-              <span className="text-slate-400 block text-[11px] mb-1">Activity Level</span>
+              <span className="text-slate-400 block text-[11px] mb-1">{t('protocolDetail.activity')}</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">{protocol.phantom.activityLevel}</span>
             </div>
           </div>
 
           <div className="text-xs space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <p><strong>Dimensions:</strong> {protocol.phantom.dimensions}</p>
-            <p><strong>Preparation:</strong> {protocol.phantom.preparationInstructions}</p>
+            <p><strong>{t('protocolDetail.dimensions')}:</strong> {protocol.phantom.dimensions}</p>
+            <p><strong>{t('protocolDetail.preparation')}:</strong> {protocol.phantom.preparationInstructions}</p>
           </div>
         </div>
       )}
@@ -162,10 +165,10 @@ export const ProtocolDetailPage = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-sm">
             <CheckSquare className="w-4 h-4" />
-            <span>Standard Clinical Procedure Checklist</span>
+            <span>{t('protocolDetail.procedure')}</span>
           </div>
           <span className="text-xs text-slate-400">
-            {Object.values(completedSteps).filter(Boolean).length} / {protocol.steps.length} Completed
+            {Object.values(completedSteps).filter(Boolean).length} / {protocol.steps.length}
           </span>
         </div>
 
@@ -190,11 +193,11 @@ export const ProtocolDetailPage = () => {
                 />
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-400">Step {step.stepNumber}</span>
+                    <span className="font-mono text-xs font-bold text-slate-400">{step.stepNumber}</span>
                     <span className="font-semibold text-sm text-slate-900 dark:text-white">{step.title}</span>
                     {step.isCritical && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 uppercase tracking-wider">
-                        Critical
+                        {t('protocolDetail.critical')}
                       </span>
                     )}
                   </div>
@@ -218,18 +221,18 @@ export const ProtocolDetailPage = () => {
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-sm">
           <ShieldCheck className="w-4 h-4" />
-          <span>Numerical Acceptance Thresholds & Remedial Actions</span>
+          <span>{t('protocolDetail.acceptance')}</span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left rtl:text-right text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-                <th className="pb-3 px-3">Parameter</th>
-                <th className="pb-3 px-3">Operator</th>
-                <th className="pb-3 px-3">Target</th>
-                <th className="pb-3 px-3">Tolerance Criteria</th>
-                <th className="pb-3 px-3">Remedial Action on Failure</th>
+                <th className="pb-3 px-3">{t('protocolDetail.paramName')}</th>
+                <th className="pb-3 px-3">{t('protocolDetail.operatorCol')}</th>
+                <th className="pb-3 px-3">{t('protocolDetail.operator')}</th>
+                <th className="pb-3 px-3">{t('protocolDetail.tolerance')}</th>
+                <th className="pb-3 px-3">{t('protocolDetail.remedyAction')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">

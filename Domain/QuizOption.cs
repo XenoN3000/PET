@@ -7,4 +7,6 @@ public class QuizOption
     public string OptionText { get; set; } = string.Empty;
     public bool IsCorrect { get; set; }
     public string ClinicalRationale { get; set; } = string.Empty;
+
+    public ICollection<QuizOptionTranslation> Translations { get; set; } = new List<QuizOptionTranslation>();
 }
